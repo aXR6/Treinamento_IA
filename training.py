@@ -1,4 +1,5 @@
 # training.py
+#!/usr/bin/env python3
 import logging
 from typing import List, Optional
 import os
