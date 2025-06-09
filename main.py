@@ -1,3 +1,4 @@
+#main.py
 #!/usr/bin/env python3
 import os
 import sys
@@ -48,7 +49,6 @@ DIMENSIONS = {
     "5": DIM_MPNET
 }
 
-
 def select_device(current: str) -> str:
     print("\n*** Selecione Dispositivo ***")
     options = ["cpu", "auto"]
@@ -61,6 +61,16 @@ def select_device(current: str) -> str:
         return options[int(c)-1]
     return current
 
+def toggle_tf_cuda(current: bool) -> bool:
+    print("\n*** Transformers deve detectar GPU automaticamente? ***")
+    print("1 - Sim")
+    print("2 - Não")
+    c = input(f"Escolha [{'Sim' if current else 'Não'}]: ").strip()
+    if c == "1":
+        return True
+    if c == "2":
+        return False
+    return current
 
 def toggle_tf_cuda(current: bool) -> bool:
     print("\n*** Transformers deve detectar GPU automaticamente? ***")
@@ -77,7 +87,6 @@ def toggle_tf_cuda(current: bool) -> bool:
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
 
-
 def select_strategy(current: str) -> str:
     print("\n*** Selecione Estratégia ***")
     for i, k in enumerate(STRATEGY_OPTIONS, 1):
@@ -87,14 +96,12 @@ def select_strategy(current: str) -> str:
         return STRATEGY_OPTIONS[int(c)-1]
     return current
 
-
 def select_embedding(current: str) -> str:
     print("\n*** Selecione Embedding ***")
     for k, n in EMBED_MODELS.items():
         print(f"{k} - {n}")
     c = input(f"Escolha [{current}]: ").strip()
     return EMBED_MODELS.get(c, current)
-
 
 def select_dimension(current: int) -> int:
     print("\n*** Selecione Dimensão ***")
@@ -108,7 +115,7 @@ def process_file(path: str, strat: str, model: str, dim: int, device: str,
     """
     Processa um único arquivo: extrai texto, gera embeddings e salva no PostgreSQL.
     Agora o save_to_postgres retorna a lista completa de registros inseridos,
-    para que possamos logar quantos chunks foram inseridos e (se aplicável) 
+    para que possamos logar quantos chunks foram inseridos e (se aplicável)
     qual a pontuação de reranking de cada um.
     """
     filename = os.path.basename(path)
@@ -166,7 +173,6 @@ def process_file(path: str, strat: str, model: str, dim: int, device: str,
             import gc; gc.collect()
         except Exception:
             pass
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -290,7 +296,6 @@ def main():
 
     clear_screen()
     print(f"Processados: {stats['processed']}  •  Erros: {stats['errors']}")
-
 
 if __name__ == "__main__":
     main()

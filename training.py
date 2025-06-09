@@ -1,3 +1,8 @@
+
+---
+
+### `training.py`
+```python
 # training.py
 import logging
 from typing import List, Optional
@@ -125,4 +130,3 @@ def train_model(
         os.environ["TRANSFORMERS_NO_CUDA"] = prev_env
     else:
         os.environ.pop("TRANSFORMERS_NO_CUDA", None)
-
