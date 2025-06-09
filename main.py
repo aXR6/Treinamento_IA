@@ -176,6 +176,7 @@ def main():
         print(f"4 - Dispositivo (atual: {device})")
         print("5 - Arquivo")
         print("6 - Pasta")
+        print("7 - Treinar modelo")
         print("0 - Sair")
         c = input("> ").strip()
 
@@ -257,6 +258,11 @@ def main():
 
             print(f"\n=== Resumo final ===")
             print(f"  Processados: {stats['processed']}  •  Erros: {stats['errors']}  •  Tempo total: {dt:.2f}s")
+            input("ENTER para continuar…")
+
+        elif c == "7":
+            from training import train_model
+            train_model(model, dim, device)
             input("ENTER para continuar…")
 
         else:
