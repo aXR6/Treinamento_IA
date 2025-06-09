@@ -21,6 +21,8 @@ transformers>=4.30.0
 torch>=1.11.0
 scikit-learn
 nltk
+datasets
+accelerate
 
 # === Banco de dados (PostgreSQL + pgvector) ===
 psycopg2-binary
