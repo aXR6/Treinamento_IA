@@ -23,7 +23,6 @@ from config import (
     TRAINING_MODEL_NAME,
 )
 
-
 def _fetch_texts(dim: int) -> List[str]:
     """Lê a coluna `content` de public.documents_<dim>."""
     table = f"public.documents_{dim}"
@@ -48,7 +47,6 @@ def _fetch_texts(dim: int) -> List[str]:
         if conn:
             conn.close()
 
-
 def _should_use_cuda(device_str: str, allow_gpu: bool) -> bool:
     """Decide se o treinamento deve usar CUDA."""
     if device_str == "gpu":
@@ -57,10 +55,8 @@ def _should_use_cuda(device_str: str, allow_gpu: bool) -> bool:
         return True
     return False
 
-
 def _resolve_device(device_str: str, allow_gpu: bool) -> str:
     return "cuda" if _should_use_cuda(device_str, allow_gpu) else "cpu"
-
 
 def train_model(
     dim: int,
@@ -125,4 +121,3 @@ def train_model(
         os.environ["TRANSFORMERS_NO_CUDA"] = prev_env
     else:
         os.environ.pop("TRANSFORMERS_NO_CUDA", None)
-

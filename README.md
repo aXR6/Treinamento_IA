@@ -92,7 +92,7 @@ Todos os modelos e dimensões são configuráveis no arquivo `.env`.
 - Selecionar Dimensão
 - Selecionar Dispositivo (CPU/GPU/Auto)
 - Processar Arquivo / Pasta (inclui imagens)
- - Mover arquivos concluídos para a subpasta `processado` (essa pasta é ignorada ao processar pastas)
+- Mover arquivos concluídos para a subpasta `processado` (essa pasta é ignorada ao processar pastas)
 - Treinar modelo com dados do banco
 - Ativar/desativar detecção automática de GPU pelo transformers
 - Sair
