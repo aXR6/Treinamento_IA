@@ -262,7 +262,7 @@ def main():
 
         elif c == "7":
             from training import train_model
-            train_model(model, dim, device)
+            train_model(dim, device)
             input("ENTER para continuar…")
 
         else:
