@@ -1,9 +1,13 @@
 #config.py
 import os
 import logging
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Carrega variáveis de ambiente buscando .env na pasta do projeto.
+# `override=True` garante que valores do arquivo substituam variáveis já
+# definidas no ambiente do sistema.
+load_dotenv(Path(__file__).resolve().with_name('.env'), override=True)
 
 # — NVD API Key (para incremental)
 NVD_API_KEY = os.getenv("NVD_API_KEY")

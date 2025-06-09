@@ -11,6 +11,7 @@ evitar OOM em GPU.
 import os
 import sys
 import logging
+from pathlib import Path
 import uvicorn
 import torch
 from typing import List, Union, Optional, Dict
@@ -21,7 +22,8 @@ from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 
 # ─── Carrega variáveis de ambiente do arquivo .env ──────────────────────────
-load_dotenv()
+# Busca .env no diretório do servidor e sobrescreve variáveis já definidas.
+load_dotenv(Path(__file__).resolve().with_name('.env'), override=True)
 
 EMBEDDING_MODELS = [
     m.strip()
