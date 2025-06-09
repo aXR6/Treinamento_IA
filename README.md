@@ -11,6 +11,7 @@ Pipeline completo para processamento de documentos PDF, DOCX e imagens, incluind
 - **Re-ranking:** Cross-Encoder (ms-marco) para maior precisão
 - **Monitoramento:** Prometheus (latência, contagem de buscas, tamanho dos resultados)
 - **CLI Interativo:** Seleção de estratégia, modelo, dimensão **e dispositivo (cpu/gpu/auto)**, modo verboso, processamento em lote com barra de progresso e estatísticas em tempo real
+- **Treinamento de Modelos:** ajuste fino de modelos da Hugging Face usando textos do PostgreSQL (defina `TRAINING_MODEL_NAME` no `.env`)
  - **Organização:** Arquivos processados são movidos para a subpasta `processado`,
    que é ignorada em execuções futuras
 
@@ -92,7 +93,17 @@ Todos os modelos e dimensões são configuráveis no arquivo `.env`.
 - Selecionar Dispositivo (CPU/GPU/Auto)
 - Processar Arquivo / Pasta (inclui imagens)
  - Mover arquivos concluídos para a subpasta `processado` (essa pasta é ignorada ao processar pastas)
+- Treinar modelo com dados do banco
+- Ativar/desativar detecção automática de GPU pelo transformers
 - Sair
+
+Exemplo:
+
+```bash
+$ python main.py
+# escolha a opção "7 - Treinar modelo" para ajustar o modelo definido em TRAINING_MODEL_NAME
+# use a opção "8" para decidir se o transformers pode usar CUDA automaticamente
+```
 
 **Flags:**
 - `--verbose`: logs detalhados
@@ -180,6 +191,8 @@ MINILM_L12_V2=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 DIM_MINIL12=384
 MPNET_EMBEDDING_MODEL=sentence-transformers/all-mpnet-base-v2
 DIM_MPNET=768
+# Modelo HF para treinamento (opcional)
+TRAINING_MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Llama-8B
 
 # OCR
 OCR_THRESHOLD=100
