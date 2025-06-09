@@ -1,4 +1,3 @@
-#main.py
 #!/usr/bin/env python3
 import os
 import sys
@@ -71,18 +70,6 @@ def toggle_tf_cuda(current: bool) -> bool:
     if c == "2":
         return False
     return current
-
-def toggle_tf_cuda(current: bool) -> bool:
-    print("\n*** Transformers deve detectar GPU automaticamente? ***")
-    print("1 - Sim")
-    print("2 - Não")
-    c = input(f"Escolha [{'Sim' if current else 'Não'}]: ").strip()
-    if c == "1":
-        return True
-    if c == "2":
-        return False
-    return current
-
 
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
