@@ -1,0 +1,38 @@
+# =======================
+# Gestão de variáveis de ambiente
+# =======================
+python-dotenv           # Leitura de .env e definição de variáveis de ambiente :contentReference[oaicite:0]{index=0}
+
+# =======================
+# Extração de texto / PDF
+# =======================
+pymongo                 # Driver MongoDB para Python :contentReference[oaicite:1]{index=1}
+pytesseract             # OCR via Tesseract
+pdf2image               # Conversão de PDF para imagem
+pdfminer.six            # Extração de texto com pdfminer :contentReference[oaicite:2]{index=2}
+PyPDF2                  # Extração de texto com PyPDF2
+PyMuPDF                 # fitz, extração e metadados de PDF
+unstructured            # UnstructuredWordDocumentLoader (docx)
+
+python-docx             # Manipulação de arquivos .docx
+
+# =======================
+# Chunking semântico / embeddings
+# =======================
+langchain               # Framework para RAG e pipelines de LLM :contentReference[oaicite:3]{index=3}
+langchain-community     # Integrações extras para LangChain :contentReference[oaicite:4]{index=4}
+sentence-transformers   # Geração de embeddings via SBERT :contentReference[oaicite:5]{index=5}
+torch                   # Suporte PyTorch para sentence-transformers :contentReference[oaicite:6]{index=6}
+scikit-learn            # Algoritmos de clustering e avaliação
+
+# =======================
+# Banco de dados
+# =======================
+psycopg2-binary         # Conector PostgreSQL
+gridfs                  # GridFS já incluso via pymongo
+requests                # Chamadas HTTP (embeddings, APIs externas)
+
+# =======================
+# Utilitários gerais
+# =======================
+python-dotenv           # (já listado acima)
