@@ -1,6 +1,7 @@
 # training.py
 import logging
 from typing import List, Optional
+import os
 
 import psycopg2
 import torch
@@ -21,7 +22,6 @@ from config import (
     PG_DATABASE,
     TRAINING_MODEL_NAME,
 )
-
 
 def _fetch_texts(dim: int) -> List[str]:
     """Lê a coluna `content` de public.documents_<dim>."""
@@ -47,19 +47,36 @@ def _fetch_texts(dim: int) -> List[str]:
         if conn:
             conn.close()
 
+def _should_use_cuda(device_str: str, allow_gpu: bool) -> bool:
+    """Decide se o treinamento deve usar CUDA."""
+    if device_str == "gpu":
+        return torch.cuda.is_available()
+    if device_str == "auto" and allow_gpu and torch.cuda.is_available():
+        return True
+    return False
 
-def _resolve_device(device_str: str) -> str:
-    if device_str == "auto":
-        return "cuda" if torch.cuda.is_available() else "cpu"
-    return device_str
+def _resolve_device(device_str: str, allow_gpu: bool) -> str:
+    return "cuda" if _should_use_cuda(device_str, allow_gpu) else "cpu"
 
-
-def train_model(dim: int, device: str, model_name: Optional[str] = None) -> None:
+def train_model(
+    dim: int,
+    device: str,
+    model_name: Optional[str] = None,
+    allow_auto_gpu: bool = True,
+) -> None:
     """Ajusta um modelo Hugging Face usando textos do PostgreSQL."""
     texts = _fetch_texts(dim)
     if not texts:
         logging.error("Nenhum texto encontrado para treinamento.")
         return
+
+    use_cuda = _should_use_cuda(device, allow_auto_gpu)
+    prev_env = os.environ.get("TRANSFORMERS_NO_CUDA")
+    if not use_cuda:
+        os.environ["TRANSFORMERS_NO_CUDA"] = "1"
+    else:
+        if prev_env is not None:
+            os.environ.pop("TRANSFORMERS_NO_CUDA", None)
 
     base_model = model_name or TRAINING_MODEL_NAME
     logging.info(f"Carregando modelo '{base_model}'…")
@@ -76,16 +93,19 @@ def train_model(dim: int, device: str, model_name: Optional[str] = None) -> None
     tokenized = dataset.map(tokenize_fn, batched=True, remove_columns=["text"])
     collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
+    resolved_device = _resolve_device(device, allow_auto_gpu)
+
     training_args = TrainingArguments(
         output_dir=f"{base_model.replace('/', '_')}_finetuned_{dim}",
         num_train_epochs=1,
         per_device_train_batch_size=1,
         logging_steps=10,
         overwrite_output_dir=True,
+        no_cuda=resolved_device == "cpu",
     )
 
     trainer = Trainer(
-        model=model.to(_resolve_device(device)),
+        model=model.to(resolved_device),
         args=training_args,
         train_dataset=tokenized,
         data_collator=collator,
@@ -96,3 +116,8 @@ def train_model(dim: int, device: str, model_name: Optional[str] = None) -> None
     trainer.save_model(training_args.output_dir)
     logging.info(f"Modelo salvo em {training_args.output_dir}")
 
+    # Restaura variável de ambiente original
+    if prev_env is not None:
+        os.environ["TRANSFORMERS_NO_CUDA"] = prev_env
+    else:
+        os.environ.pop("TRANSFORMERS_NO_CUDA", None)
