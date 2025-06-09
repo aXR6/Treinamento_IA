@@ -26,6 +26,10 @@ MINILM_L6_V2            = os.getenv("MINILM_L6_V2")
 MINILM_L12_V2           = os.getenv("MINILM_L12_V2")
 MPNET_EMBEDDING_MODEL   = os.getenv("MPNET_EMBEDDING_MODEL")
 SBERT_MODEL_NAME        = os.getenv("SBERT_MODEL_NAME")
+TRAINING_MODEL_NAME    = os.getenv(
+    "TRAINING_MODEL_NAME",
+    "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+)
 
 # — Dimensões de embedding
 DIM_MXBAI     = int(os.getenv("DIM_MXBAI", "0"))

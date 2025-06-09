@@ -62,6 +62,18 @@ def select_device(current: str) -> str:
     return current
 
 
+def toggle_tf_cuda(current: bool) -> bool:
+    print("\n*** Transformers deve detectar GPU automaticamente? ***")
+    print("1 - Sim")
+    print("2 - Não")
+    c = input(f"Escolha [{'Sim' if current else 'Não'}]: ").strip()
+    if c == "1":
+        return True
+    if c == "2":
+        return False
+    return current
+
+
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
 
@@ -165,6 +177,7 @@ def main():
     model = OLLAMA_EMBEDDING_MODEL
     dim = DIM_MXBAI
     device = "auto"
+    allow_tf_cuda = True
     stats = {"processed": 0, "errors": 0}
 
     while True:
@@ -176,6 +189,10 @@ def main():
         print(f"4 - Dispositivo (atual: {device})")
         print("5 - Arquivo")
         print("6 - Pasta")
+        print("7 - Treinar modelo")
+        print(
+            f"8 - Transformers detectar GPU automaticamente: {'Sim' if allow_tf_cuda else 'Não'}"
+        )
         print("0 - Sair")
         c = input("> ").strip()
 
@@ -258,6 +275,14 @@ def main():
             print(f"\n=== Resumo final ===")
             print(f"  Processados: {stats['processed']}  •  Erros: {stats['errors']}  •  Tempo total: {dt:.2f}s")
             input("ENTER para continuar…")
+
+        elif c == "7":
+            from training import train_model
+            train_model(dim, device, allow_auto_gpu=allow_tf_cuda)
+            input("ENTER para continuar…")
+
+        elif c == "8":
+            allow_tf_cuda = toggle_tf_cuda(allow_tf_cuda)
 
         else:
             print("Opção inválida.")
