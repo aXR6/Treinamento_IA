@@ -200,9 +200,9 @@ def train_model(
         model = model.to(resolved_device)
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
-            logging.error(f"Mem\u00f3ria insuficiente para mover modelo: {e}")
+            logging.error(f"Memória insuficiente para mover modelo: {e}")
             print(
-                "\n\u26a0\ufe0f  N\u00e3o h\u00e1 mem\u00f3ria de v\u00eddeo suficiente. "
+                "\n⚠️  Não há memória de vídeo suficiente. "
                 "Reduza o batch size ou selecione 'cpu' como dispositivo."
             )
             if torch.cuda.is_available():
@@ -230,9 +230,9 @@ def train_model(
         )
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
-            logging.error(f"Mem\u00f3ria insuficiente durante o treinamento: {e}")
+            logging.error(f"Memória insuficiente durante o treinamento: {e}")
             print(
-                "\n\u26a0\ufe0f  A GPU ficou sem mem\u00f3ria durante o treinamento. "
+                "\n⚠️  A GPU ficou sem memória durante o treinamento. "
                 "Tente reduzir o batch size ou utilize a CPU."
             )
             if torch.cuda.is_available():
