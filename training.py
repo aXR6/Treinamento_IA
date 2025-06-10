@@ -85,6 +85,8 @@ class ProgressCallback(TrainerCallback):
                 info["epoch"] = f"{logs['epoch']:.2f}"
             if info:
                 self.pbar.set_postfix(info)
+            # Imprime dicionário completo de logs para maior interação
+            self.pbar.write(str(logs))
 
     def on_step_end(self, args, state, control, **kwargs):
         if self.pbar:
