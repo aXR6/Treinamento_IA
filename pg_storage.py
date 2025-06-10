@@ -6,7 +6,7 @@ import psycopg2
 import torch
 from adaptive_chunker import hierarchical_chunk_generator, get_sbert_model
 from sentence_transformers import CrossEncoder
-from transformers import pipeline
+from question_generation import pipeline
 from config import PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE
 from metrics import record_metrics
 
