@@ -97,7 +97,13 @@ def select_dimension(current: int) -> int:
     c = input(f"Escolha [{current}]: ").strip()
     return DIMENSIONS.get(c, current)
 
-def training_menu(train_dim: int, device: str, allow_tf_cuda: bool) -> tuple[int, bool]:
+def training_menu(
+    train_dim: int,
+    device: str,
+    allow_tf_cuda: bool,
+    epochs: int,
+    batch_size: int,
+) -> tuple[int, bool, int, int]:
     """Exibe o submenu de treinamento."""
     while True:
         clear_screen()
@@ -107,6 +113,8 @@ def training_menu(train_dim: int, device: str, allow_tf_cuda: bool) -> tuple[int
             f"2 - Transformers detectar GPU automaticamente: {'Sim' if allow_tf_cuda else 'Não'}"
         )
         print(f"3 - Selecionar tabela (atual: documents_{train_dim})")
+        print(f"4 - Épocas (atual: {epochs})")
+        print(f"5 - Batch size (atual: {batch_size})")
         print("0 - Voltar")
         c = input("> ").strip()
 
@@ -115,7 +123,13 @@ def training_menu(train_dim: int, device: str, allow_tf_cuda: bool) -> tuple[int
 
         elif c == "1":
             from training import train_model
-            train_model(train_dim, device, allow_auto_gpu=allow_tf_cuda)
+            train_model(
+                train_dim,
+                device,
+                allow_auto_gpu=allow_tf_cuda,
+                epochs=epochs,
+                batch_size=batch_size,
+            )
             input("ENTER para continuar…")
 
         elif c == "2":
@@ -124,11 +138,21 @@ def training_menu(train_dim: int, device: str, allow_tf_cuda: bool) -> tuple[int
         elif c == "3":
             train_dim = select_dimension(train_dim)
 
+        elif c == "4":
+            inp = input(f"Número de épocas [{epochs}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                epochs = int(inp)
+
+        elif c == "5":
+            inp = input(f"Batch size [{batch_size}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                batch_size = int(inp)
+
         else:
             print("Opção inválida.")
             time.sleep(1)
 
-    return train_dim, allow_tf_cuda
+    return train_dim, allow_tf_cuda, epochs, batch_size
 
 def process_file(path: str, strat: str, model: str, dim: int, device: str,
                  stats: dict, processed_root: Optional[str] = None):
@@ -205,6 +229,8 @@ def main():
     device = "auto"
     allow_tf_cuda = True
     train_dim = dim
+    epochs = 1
+    batch_size = 1
     stats = {"processed": 0, "errors": 0}
 
     while True:
@@ -302,7 +328,13 @@ def main():
             input("ENTER para continuar…")
 
         elif c == "7":
-            train_dim, allow_tf_cuda = training_menu(train_dim, device, allow_tf_cuda)
+            train_dim, allow_tf_cuda, epochs, batch_size = training_menu(
+                train_dim,
+                device,
+                allow_tf_cuda,
+                epochs,
+                batch_size,
+            )
 
         else:
             print("Opção inválida.")
