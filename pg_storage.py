@@ -13,6 +13,7 @@ from metrics import record_metrics
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
 _CE_CACHE: dict = {}
+_QG_PIPELINE = None
 _QA_PIPELINE = None
 
 def get_cross_encoder(model_name: str, device: str) -> CrossEncoder:
@@ -70,21 +71,36 @@ def generate_embedding(text: str, model_name: str, dim: int, device: str) -> lis
 
 def generate_qa(text: str) -> tuple[str, str]:
     """Gera um par (pergunta, resposta) a partir do texto."""
-    global _QA_PIPELINE
+    global _QG_PIPELINE, _QA_PIPELINE
+
+    if _QG_PIPELINE is None:
+        try:
+            _QG_PIPELINE = pipeline("question-generation")
+        except Exception as e:
+            logging.error(f"Falha ao carregar pipeline de question generation: {e}")
+            return "", ""
+
     if _QA_PIPELINE is None:
         try:
-            _QA_PIPELINE = pipeline("e2e-qg")
+            _QA_PIPELINE = pipeline("question-answering")
         except Exception as e:
-            logging.error(f"Falha ao carregar pipeline de QA: {e}")
+            logging.error(f"Falha ao carregar pipeline de question answering: {e}")
             return "", ""
+
     try:
-        result = _QA_PIPELINE(text)
-        if isinstance(result, list) and result:
-            qa = result[0]
+        questions = _QG_PIPELINE(text)
+        if isinstance(questions, list) and questions:
+            question = questions[0] if isinstance(questions[0], str) else questions[0].get("question", "")
+        elif isinstance(questions, str):
+            question = questions
         else:
-            qa = result
-        question = qa.get("question", "") if isinstance(qa, dict) else ""
-        answer = qa.get("answer", "") if isinstance(qa, dict) else ""
+            question = ""
+
+        answer = ""
+        if question:
+            qa_res = _QA_PIPELINE({"question": question, "context": text})
+            if isinstance(qa_res, dict):
+                answer = qa_res.get("answer", "")
         return question, answer
     except Exception as e:
         logging.error(f"Erro ao gerar pergunta e resposta: {e}")
