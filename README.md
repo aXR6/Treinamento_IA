@@ -92,6 +92,7 @@ VALIDATION_SPLIT=0.1
 - `accelerate`
 - `torch`
 - `psycopg2-binary`
+- `question-generation`
 
 Todas as dependências estão listadas em `requirements.txt`.
 

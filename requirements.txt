@@ -39,3 +39,4 @@ tiktoken
 boto3
 requests
 pikepdf
+question-generation
