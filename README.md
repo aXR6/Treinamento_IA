@@ -37,6 +37,8 @@ PG_PASSWORD=senha
 PG_DATABASE=vector_store
 
 TRAINING_MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+EVAL_STEPS=500
+VALIDATION_SPLIT=0.1
 ```
 
 ### Estrutura do Projeto
@@ -56,8 +58,12 @@ TRAINING_MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Llama-8B
 1. Defina o modelo desejado em `TRAINING_MODEL_NAME` no `.env`. Se não definido, será usado `deepseek-ai/DeepSeek-R1-Distill-Llama-8B`.
 2. Processe seus documentos normalmente (opções 1 a 6 do menu) para popular a tabela `public.documents_<dim>`.
 3. Escolha a dimensão (opção 3) e o dispositivo (opção 4).
-4. Acesse **7 - Treinamento**. No submenu, defina a tabela desejada (opção 3) e se a detecção automática de GPU deve ser usada (opção 2). Depois selecione **1 - Treinar modelo**.
-5. O resultado é salvo em uma pasta `MODELNAME_finetuned_<dim>`.
+4. Acesse **7 - Treinamento**. No submenu você pode:
+   - Definir a tabela de origem (opção 3).
+   - Ajustar épocas, batch size, passos de avaliação e porcentagem de validação.
+   - Ativar ou não a detecção automática de GPU.
+   - Por fim, escolha **1 - Treinar modelo**.
+5. O resultado é salvo em uma pasta `MODELNAME_finetuned_<dim>` e o melhor modelo em `best_model`.
 
 ### Dependências
 

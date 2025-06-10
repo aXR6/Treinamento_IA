@@ -58,6 +58,10 @@ SLIDING_WINDOW_OVERLAP_RATIO = float(os.getenv("SLIDING_WINDOW_OVERLAP_RATIO", "
 MAX_SEQ_LENGTH               = int(os.getenv("MAX_SEQ_LENGTH", "0"))
 SEPARATORS                   = os.getenv("SEPARATORS", "").split("|")
 
+# --- Parâmetros de treinamento
+EVAL_STEPS       = int(os.getenv("EVAL_STEPS", "500"))
+VALIDATION_SPLIT = float(os.getenv("VALIDATION_SPLIT", "0.1"))
+
 def validate_config():
     missing = []
     for var in ("PG_HOST", "PG_PORT", "PG_USER", "PG_PASSWORD", "PG_DATABASE"):
