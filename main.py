@@ -97,6 +97,39 @@ def select_dimension(current: int) -> int:
     c = input(f"Escolha [{current}]: ").strip()
     return DIMENSIONS.get(c, current)
 
+def training_menu(train_dim: int, device: str, allow_tf_cuda: bool) -> tuple[int, bool]:
+    """Exibe o submenu de treinamento."""
+    while True:
+        clear_screen()
+        print("*** Menu Treinamento ***")
+        print("1 - Treinar modelo")
+        print(
+            f"2 - Transformers detectar GPU automaticamente: {'Sim' if allow_tf_cuda else 'Não'}"
+        )
+        print(f"3 - Selecionar tabela (atual: documents_{train_dim})")
+        print("0 - Voltar")
+        c = input("> ").strip()
+
+        if c == "0":
+            break
+
+        elif c == "1":
+            from training import train_model
+            train_model(train_dim, device, allow_auto_gpu=allow_tf_cuda)
+            input("ENTER para continuar…")
+
+        elif c == "2":
+            allow_tf_cuda = toggle_tf_cuda(allow_tf_cuda)
+
+        elif c == "3":
+            train_dim = select_dimension(train_dim)
+
+        else:
+            print("Opção inválida.")
+            time.sleep(1)
+
+    return train_dim, allow_tf_cuda
+
 def process_file(path: str, strat: str, model: str, dim: int, device: str,
                  stats: dict, processed_root: Optional[str] = None):
     """
@@ -171,6 +204,7 @@ def main():
     dim = DIM_MXBAI
     device = "auto"
     allow_tf_cuda = True
+    train_dim = dim
     stats = {"processed": 0, "errors": 0}
 
     while True:
@@ -182,10 +216,7 @@ def main():
         print(f"4 - Dispositivo (atual: {device})")
         print("5 - Arquivo")
         print("6 - Pasta")
-        print("7 - Treinar modelo")
-        print(
-            f"8 - Transformers detectar GPU automaticamente: {'Sim' if allow_tf_cuda else 'Não'}"
-        )
+        print("7 - Treinamento")
         print("0 - Sair")
         c = input("> ").strip()
 
@@ -200,6 +231,7 @@ def main():
 
         elif c == "3":
             dim = select_dimension(dim)
+            train_dim = dim
 
         elif c == "4":
             device = select_device(device)
@@ -270,12 +302,7 @@ def main():
             input("ENTER para continuar…")
 
         elif c == "7":
-            from training import train_model
-            train_model(dim, device, allow_auto_gpu=allow_tf_cuda)
-            input("ENTER para continuar…")
-
-        elif c == "8":
-            allow_tf_cuda = toggle_tf_cuda(allow_tf_cuda)
+            train_dim, allow_tf_cuda = training_menu(train_dim, device, allow_tf_cuda)
 
         else:
             print("Opção inválida.")
