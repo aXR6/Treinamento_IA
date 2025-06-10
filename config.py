@@ -32,7 +32,7 @@ MPNET_EMBEDDING_MODEL   = os.getenv("MPNET_EMBEDDING_MODEL")
 SBERT_MODEL_NAME        = os.getenv("SBERT_MODEL_NAME")
 TRAINING_MODEL_NAME    = os.getenv(
     "TRAINING_MODEL_NAME",
-    "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+    "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
 )
 
 # — Dimensões de embedding
