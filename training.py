@@ -102,7 +102,7 @@ def train_model(
         per_device_train_batch_size=1,
         logging_steps=10,
         overwrite_output_dir=True,
-        no_cuda=resolved_device == "cpu",
+        use_cpu=resolved_device == "cpu",
     )
 
     trainer = Trainer(
