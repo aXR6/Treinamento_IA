@@ -12,7 +12,9 @@ from transformers import (
     Trainer,
     TrainingArguments,
     DataCollatorForLanguageModeling,
+    TrainerCallback,
 )
+from tqdm import tqdm
 from datasets import Dataset, Features, Value
 
 from config import (
@@ -62,6 +64,36 @@ def _should_use_cuda(device_str: str, allow_gpu: bool) -> bool:
 
 def _resolve_device(device_str: str, allow_gpu: bool) -> str:
     return "cuda" if _should_use_cuda(device_str, allow_gpu) else "cpu"
+
+
+class ProgressCallback(TrainerCallback):
+    """Exibe barra de progresso e métricas durante o treinamento."""
+
+    def __init__(self) -> None:
+        self.pbar = None
+
+    def on_train_begin(self, args, state, control, **kwargs):
+        total = state.max_steps
+        self.pbar = tqdm(total=total, desc="Treinando", unit="step")
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if self.pbar and logs:
+            info = {}
+            if "loss" in logs:
+                info["loss"] = f"{logs['loss']:.4f}"
+            if "epoch" in logs:
+                info["epoch"] = f"{logs['epoch']:.2f}"
+            if info:
+                self.pbar.set_postfix(info)
+
+    def on_step_end(self, args, state, control, **kwargs):
+        if self.pbar:
+            self.pbar.update(1)
+
+    def on_train_end(self, args, state, control, **kwargs):
+        if self.pbar:
+            self.pbar.close()
+            self.pbar = None
 
 def train_model(
     dim: int,
@@ -122,6 +154,7 @@ def train_model(
         args=training_args,
         train_dataset=tokenized,
         data_collator=collator,
+        callbacks=[ProgressCallback()],
     )
 
     logging.info("Iniciando treinamento…")
