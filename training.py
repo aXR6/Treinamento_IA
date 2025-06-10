@@ -162,8 +162,22 @@ def train_model(
         use_cpu=resolved_device == "cpu",
     )
 
+    try:
+        model = model.to(resolved_device)
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower():
+            logging.error(f"Mem\u00f3ria insuficiente para mover modelo: {e}")
+            print(
+                "\n\u26a0\ufe0f  N\u00e3o h\u00e1 mem\u00f3ria de v\u00eddeo suficiente. "
+                "Reduza o batch size ou selecione 'cpu' como dispositivo."
+            )
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            return
+        raise
+
     trainer = Trainer(
-        model=model.to(resolved_device),
+        model=model,
         args=training_args,
         train_dataset=tokenized,
         data_collator=collator,
@@ -171,9 +185,21 @@ def train_model(
     )
 
     logging.info("Iniciando treinamento…")
-    trainer.train()
-    trainer.save_model(training_args.output_dir)
-    logging.info(f"Modelo salvo em {training_args.output_dir}")
+    try:
+        trainer.train()
+        trainer.save_model(training_args.output_dir)
+        logging.info(f"Modelo salvo em {training_args.output_dir}")
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower():
+            logging.error(f"Mem\u00f3ria insuficiente durante o treinamento: {e}")
+            print(
+                "\n\u26a0\ufe0f  A GPU ficou sem mem\u00f3ria durante o treinamento. "
+                "Tente reduzir o batch size ou utilize a CPU."
+            )
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            return
+        raise
 
     # Restaura variável de ambiente original
     if prev_env is not None:
