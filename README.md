@@ -9,15 +9,17 @@
 
 ### Instalação
 
-Clone o repositório e instale as dependências:
+Clone o repositório e utilize o script `init-env.sh` para criar e ativar o
+ambiente virtual automaticamente:
 
 ```bash
 git clone https://github.com/seu_usuario/seu_projeto.git
 cd seu_projeto
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+source init-env.sh
 ```
+
+O script cria o diretório `.venv`, instala todas as dependências de
+`requirements.txt` e deixa o ambiente pronto para uso.
 
 Configure o arquivo `.env` (veja `exemplo.env`) e execute:
 
@@ -35,6 +37,16 @@ PG_PASSWORD=senha
 PG_DATABASE=vector_store
 
 TRAINING_MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+```
+
+### Estrutura do Projeto
+
+```
+├─ main.py           # CLI para indexação e treinamento
+├─ training.py       # Funções de fine-tuning de modelos
+├─ init-env.sh       # Criação/ativação do virtualenv
+├─ BD_PostgreSQL/    # Scripts SQL da estrutura do banco
+├─ Srv/              # Microserviço FastAPI para embeddings
 ```
 
 ---
