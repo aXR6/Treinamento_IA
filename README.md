@@ -13,8 +13,8 @@ Clone o repositório e utilize o script `init-env.sh` para criar e ativar o
 ambiente virtual automaticamente:
 
 ```bash
-git clone https://github.com/seu_usuario/seu_projeto.git
-cd seu_projeto
+git clone https://github.com/aXR6/Treinamento_IA
+cd Treinamento_IA
 source init-env.sh
 ```
 
