@@ -105,6 +105,9 @@ Todas as dependências estão listadas em `requirements.txt`.
   expande queries com WordNet e usa sliding window quando necessário.
 - **Embeddings e Indexação:** geração de vetores com SBERT e inserção em
   streaming no PostgreSQL (pgvector), permitindo busca híbrida (RAG).
+- **Pares de Pergunta/Resposta:** as tabelas `documents_<dim>` agora incluem as
+  colunas `question` e `answer` para armazenar contextos já respondidos e
+  otimizar workflows de RAG.
 - **Re-ranking e Métricas:** Cross-Encoder para ordenar resultados e servidor
   Prometheus embutido para monitorar consultas.
 - **CLI Interativo:** escolha de estratégia, modelo, dimensão, dispositivo e
