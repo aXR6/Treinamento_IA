@@ -3,6 +3,7 @@
 import logging
 from typing import Iterable, Iterator, Optional
 import os
+import inspect
 
 import psycopg2
 import torch
@@ -104,8 +105,21 @@ def train_model(
     allow_auto_gpu: bool = True,
     epochs: int = 1,
     batch_size: int = 1,
+    eval_steps: int = 500,
+    validation_split: float = 0.1,
+    max_seq_length: int = 0,
 ) -> None:
-    """Ajusta um modelo Hugging Face usando textos do PostgreSQL."""
+    """Ajusta um modelo Hugging Face usando textos do PostgreSQL.
+
+    Parameters
+    ----------
+    eval_steps : int
+        Avalia o modelo a cada ``eval_steps`` passos.
+    validation_split : float
+        Porcentagem do dataset reservada para validação.
+    max_seq_length : int
+        Comprimento máximo das sequências (0 usa ``tokenizer.model_max_length``).
+    """
     texts_iter = _fetch_texts(dim)
     try:
         first_text = next(texts_iter)
@@ -143,24 +157,44 @@ def train_model(
     logging.info(f"Total de textos carregados: {dataset_len}")
 
     def tokenize_fn(examples):
-        return tokenizer(
-            examples["text"], truncation=True, max_length=tokenizer.model_max_length
-        )
+        max_len = max_seq_length or tokenizer.model_max_length
+        return tokenizer(examples["text"], truncation=True, max_length=max_len)
 
     tokenized = dataset.map(tokenize_fn, batched=True, remove_columns=["text"])
+    split = tokenized.train_test_split(test_size=validation_split, seed=42)
+    train_ds = split["train"]
+    eval_ds = split["test"]
     collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     resolved_device = _resolve_device(device, allow_auto_gpu)
     logging.info(f"Dispositivo escolhido: {resolved_device}")
 
-    training_args = TrainingArguments(
-        output_dir=f"{base_model.replace('/', '_')}_finetuned_{dim}",
-        num_train_epochs=epochs,
-        per_device_train_batch_size=batch_size,
-        logging_steps=10,
-        overwrite_output_dir=True,
-        use_cpu=resolved_device == "cpu",
-    )
+    out_dir = f"{base_model.replace('/', '_')}_finetuned_{dim}"
+    base_args = {
+        "output_dir": out_dir,
+        "num_train_epochs": epochs,
+        "per_device_train_batch_size": batch_size,
+        "overwrite_output_dir": True,
+        "use_cpu": resolved_device == "cpu",
+    }
+
+    sig = inspect.signature(TrainingArguments)
+    if "evaluation_strategy" in sig.parameters:
+        base_args.update({
+            "per_device_eval_batch_size": batch_size,
+            "logging_steps": 10,
+            "evaluation_strategy": "steps",
+            "eval_steps": eval_steps,
+            "save_strategy": "steps",
+            "save_steps": eval_steps,
+            "load_best_model_at_end": True,
+            "metric_for_best_model": "loss",
+            "greater_is_better": False,
+        })
+    else:
+        base_args["logging_steps"] = 10
+
+    training_args = TrainingArguments(**base_args)
 
     try:
         model = model.to(resolved_device)
@@ -179,7 +213,8 @@ def train_model(
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=tokenized,
+        train_dataset=train_ds,
+        eval_dataset=eval_ds,
         data_collator=collator,
         callbacks=[ProgressCallback()],
     )
@@ -188,7 +223,11 @@ def train_model(
     try:
         trainer.train()
         trainer.save_model(training_args.output_dir)
-        logging.info(f"Modelo salvo em {training_args.output_dir}")
+        best_dir = os.path.join(training_args.output_dir, "best_model")
+        trainer.save_model(best_dir)
+        logging.info(
+            f"Modelo salvo em {training_args.output_dir} (melhor em {best_dir})"
+        )
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
             logging.error(f"Mem\u00f3ria insuficiente durante o treinamento: {e}")
