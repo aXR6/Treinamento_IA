@@ -43,8 +43,8 @@ TRAINING_MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Llama-8B
 
 1. Defina o modelo desejado em `TRAINING_MODEL_NAME` no `.env`. Se não definido, será usado `deepseek-ai/DeepSeek-R1-Distill-Llama-8B`.
 2. Processe seus documentos normalmente (opções 1 a 6 do menu) para popular a tabela `public.documents_<dim>`.
-3. Escolha a dimensão (opção 3) e o dispositivo (opção 4). Para detecção automática de GPU pelo `transformers`, habilite a opção 8.
-4. Selecione **7 - Treinar modelo**. O programa coleta os textos, monta um dataset com `datasets` e realiza o ajuste fino via `transformers.Trainer`.
+3. Escolha a dimensão (opção 3) e o dispositivo (opção 4).
+4. Acesse **7 - Treinamento**. No submenu, defina a tabela desejada (opção 3) e se a detecção automática de GPU deve ser usada (opção 2). Depois selecione **1 - Treinar modelo**.
 5. O resultado é salvo em uma pasta `MODELNAME_finetuned_<dim>`.
 
 ### Dependências
