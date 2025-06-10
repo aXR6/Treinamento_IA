@@ -68,6 +68,8 @@ def train_model(
     device: str,
     model_name: Optional[str] = None,
     allow_auto_gpu: bool = True,
+    epochs: int = 1,
+    batch_size: int = 1,
 ) -> None:
     """Ajusta um modelo Hugging Face usando textos do PostgreSQL."""
     texts_iter = _fetch_texts(dim)
@@ -110,8 +112,8 @@ def train_model(
 
     training_args = TrainingArguments(
         output_dir=f"{base_model.replace('/', '_')}_finetuned_{dim}",
-        num_train_epochs=1,
-        per_device_train_batch_size=1,
+        num_train_epochs=epochs,
+        per_device_train_batch_size=batch_size,
         logging_steps=10,
         overwrite_output_dir=True,
         use_cpu=resolved_device == "cpu",
