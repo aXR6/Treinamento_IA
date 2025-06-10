@@ -1,7 +1,7 @@
 # training.py
 #!/usr/bin/env python3
 import logging
-from typing import List, Optional
+from typing import Iterable, Iterator, Optional
 import os
 
 import psycopg2
@@ -13,7 +13,7 @@ from transformers import (
     TrainingArguments,
     DataCollatorForLanguageModeling,
 )
-from datasets import Dataset
+from datasets import Dataset, Features, Value
 
 from config import (
     PG_HOST,
@@ -24,8 +24,8 @@ from config import (
     TRAINING_MODEL_NAME,
 )
 
-def _fetch_texts(dim: int) -> List[str]:
-    """Lê a coluna `content` de public.documents_<dim>."""
+def _fetch_texts(dim: int, batch_size: int = 1000) -> Iterator[str]:
+    """Lê a coluna `content` de public.documents_<dim>` de forma preguiçosa."""
     table = f"public.documents_{dim}"
     conn = None
     try:
@@ -36,14 +36,18 @@ def _fetch_texts(dim: int) -> List[str]:
             user=PG_USER,
             password=PG_PASSWORD,
         )
-        cur = conn.cursor()
-        cur.execute(f"SELECT content FROM {table}")
-        rows = cur.fetchall()
-        cur.close()
-        return [r[0] for r in rows]
+        # Usa cursor no servidor para evitar carregar todos os resultados em memória
+        with conn.cursor(name=f"cursor_{dim}") as cur:
+            cur.itersize = batch_size
+            cur.execute(f"SELECT content FROM {table}")
+            while True:
+                rows = cur.fetchmany(batch_size)
+                if not rows:
+                    break
+                for row in rows:
+                    yield row[0]
     except Exception as e:
         logging.error(f"Erro ao ler dados de {table}: {e}")
-        return []
     finally:
         if conn:
             conn.close()
@@ -66,10 +70,17 @@ def train_model(
     allow_auto_gpu: bool = True,
 ) -> None:
     """Ajusta um modelo Hugging Face usando textos do PostgreSQL."""
-    texts = _fetch_texts(dim)
-    if not texts:
+    texts_iter = _fetch_texts(dim)
+    try:
+        first_text = next(texts_iter)
+    except StopIteration:
         logging.error("Nenhum texto encontrado para treinamento.")
         return
+
+    def text_generator() -> Iterator[dict]:
+        yield {"text": first_text}
+        for txt in texts_iter:
+            yield {"text": txt}
 
     use_cuda = _should_use_cuda(device, allow_auto_gpu)
     prev_env = os.environ.get("TRANSFORMERS_NO_CUDA")
@@ -84,7 +95,8 @@ def train_model(
     tokenizer = AutoTokenizer.from_pretrained(base_model)
     model = AutoModelForCausalLM.from_pretrained(base_model)
 
-    dataset = Dataset.from_dict({"text": texts})
+    features = Features({"text": Value("string")})
+    dataset = Dataset.from_generator(text_generator, features=features)
 
     def tokenize_fn(examples):
         return tokenizer(
