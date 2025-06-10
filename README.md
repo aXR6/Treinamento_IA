@@ -27,6 +27,25 @@ Configure o arquivo `.env` (veja `exemplo.env`) e execute:
 python3 main.py
 ```
 
+### Variáveis de Ambiente
+
+O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
+
+- **Modelos de embedding**: `OLLAMA_EMBEDDING_MODEL`, `SERAFIM_EMBEDDING_MODEL`,
+  `MINILM_L6_V2`, `MINILM_L12_V2` e `MPNET_EMBEDDING_MODEL`. Defina
+  `SBERT_MODEL_NAME` para escolher qual será o padrão.
+- **Dimensões**: `DIM_MXBAI`, `DIM_SERAFIM`, `DIM_MINILM_L6`, `DIM_MINIL12` e
+  `DIM_MPNET` indicam o tamanho dos vetores em `documents_<dim>`.
+- **OCR**: `OCR_LANGUAGES`, `TESSERACT_CONFIG`, `OCR_THRESHOLD` e
+  `PDF2IMAGE_TIMEOUT` controlam a extração de texto via OCR.
+- **Chunking**: `CHUNK_SIZE`, `CHUNK_OVERLAP`, `SLIDING_WINDOW_OVERLAP_RATIO`,
+  `MAX_SEQ_LENGTH` e `SEPARATORS` determinam como os textos são divididos antes
+  da geração dos embeddings.
+- **Treinamento**: `TRAINING_MODEL_NAME`, `EVAL_STEPS` e `VALIDATION_SPLIT`
+  personalizam o fine-tuning de modelos da Hugging Face.
+- **Outros**: `CSV_FULL` e `CSV_INCR` podem apontar para arquivos CSV locais de
+  vulnerabilidades (opcional).
+
 #### Exemplo simplificado de `.env`
 
 ```env
@@ -80,11 +99,16 @@ Todas as dependências estão listadas em `requirements.txt`.
 
 ## ⚙️ Funcionalidades
 
-- **Extração de Texto:** PDF, DOCX e imagens com múltiplas estratégias (PyPDFLoader, PDFMiner, Unstructured, OCR, etc.).
-- **Chunking Inteligente:** Filtros de parágrafo, identificação de headings, sliding window e fallback automático.
-- **Embeddings e Indexação:** Geração de vetores via SBERT, armazenamento no PostgreSQL com pgvector e busca híbrida (RAG).
-- **Re-ranking e Métricas:** Cross-Encoder para melhor precisão e monitoramento via Prometheus.
-- **CLI Interativo:** Escolha de estratégia, modelo, dimensão, dispositivo e treinamento, com barra de progresso e logs detalhados.
+- **Extração de Texto:** PDF, DOCX e imagens com múltiplas estratégias
+  (PyPDFLoader, PDFMiner, Unstructured, OCR, etc.) e reparo automático de PDFs.
+- **Chunking Inteligente:** algoritmo hierárquico que agrupa parágrafos,
+  expande queries com WordNet e usa sliding window quando necessário.
+- **Embeddings e Indexação:** geração de vetores com SBERT e inserção em
+  streaming no PostgreSQL (pgvector), permitindo busca híbrida (RAG).
+- **Re-ranking e Métricas:** Cross-Encoder para ordenar resultados e servidor
+  Prometheus embutido para monitorar consultas.
+- **CLI Interativo:** escolha de estratégia, modelo, dimensão, dispositivo e
+  parâmetros de treinamento, com barra de progresso e logs detalhados.
 
 ---
 
