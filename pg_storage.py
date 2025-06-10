@@ -6,12 +6,14 @@ import psycopg2
 import torch
 from adaptive_chunker import hierarchical_chunk_generator, get_sbert_model
 from sentence_transformers import CrossEncoder
+from transformers import pipeline
 from config import PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE
 from metrics import record_metrics
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
 _CE_CACHE: dict = {}
+_QA_PIPELINE = None
 
 def get_cross_encoder(model_name: str, device: str) -> CrossEncoder:
     """Retorna CrossEncoder em cache para o dispositivo escolhido."""
@@ -66,6 +68,29 @@ def generate_embedding(text: str, model_name: str, dim: int, device: str) -> lis
     return vec
 
 
+def generate_qa(text: str) -> tuple[str, str]:
+    """Gera um par (pergunta, resposta) a partir do texto."""
+    global _QA_PIPELINE
+    if _QA_PIPELINE is None:
+        try:
+            _QA_PIPELINE = pipeline("e2e-qg")
+        except Exception as e:
+            logging.error(f"Falha ao carregar pipeline de QA: {e}")
+            return "", ""
+    try:
+        result = _QA_PIPELINE(text)
+        if isinstance(result, list) and result:
+            qa = result[0]
+        else:
+            qa = result
+        question = qa.get("question", "") if isinstance(qa, dict) else ""
+        answer = qa.get("answer", "") if isinstance(qa, dict) else ""
+        return question, answer
+    except Exception as e:
+        logging.error(f"Erro ao gerar pergunta e resposta: {e}")
+        return "", ""
+
+
 @record_metrics
 def save_to_postgres(filename: str,
                      text: str,
@@ -112,17 +137,20 @@ def save_to_postgres(filename: str,
         for idx, chunk in enumerate(hierarchical_chunk_generator(text, metadata, embedding_model, device_use)):
             clean = chunk.replace("\x00", "")
             emb = generate_embedding(clean, embedding_model, embedding_dim, device_use)
+            question, answer = generate_qa(clean)
 
             # Metadata mantém todas as chaves originais + __parent e __chunk_index
-            rec = {**metadata, "__parent": filename, "__chunk_index": idx}
+            rec = {**metadata, "__parent": filename, "__chunk_index": idx,
+                   "question": question, "answer": answer}
 
             cur.execute(
-                f"INSERT INTO {table} (content, metadata, embedding) "
-                f"VALUES (%s, %s::jsonb, %s) RETURNING id",
-                (clean, json.dumps(rec, ensure_ascii=False), emb)
+                f"INSERT INTO {table} (content, metadata, embedding, question, answer) "
+                f"VALUES (%s, %s::jsonb, %s, %s, %s) RETURNING id",
+                (clean, json.dumps(rec, ensure_ascii=False), emb, question, answer)
             )
             doc_id = cur.fetchone()[0]
-            inserted.append({'id': doc_id, 'content': clean, 'metadata': rec})
+            inserted.append({'id': doc_id, 'content': clean, 'metadata': rec,
+                             'question': question, 'answer': answer})
 
             # Limpeza imediata de objetos pesados
             del clean
