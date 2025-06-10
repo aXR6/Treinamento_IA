@@ -37,7 +37,8 @@ def generate_embedding(text: str, model_name: str, dim: int, device: str) -> lis
         msg = str(e).lower()
         if "out of memory" in msg:
             logging.warning("CUDA OOM – tentando em CPU")
-            torch.cuda.empty_cache()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             model = get_sbert_model(model_name, device="cpu")
             with torch.no_grad():
                 emb = model.encode(text, convert_to_numpy=True)
@@ -56,10 +57,11 @@ def generate_embedding(text: str, model_name: str, dim: int, device: str) -> lis
         vec = vec[:dim]
 
     # Limpa cache da GPU (precaução)
-    try:
-        torch.cuda.empty_cache()
-    except Exception:
-        pass
+    if torch.cuda.is_available():
+        try:
+            torch.cuda.empty_cache()
+        except Exception:
+            pass
 
     return vec
 
