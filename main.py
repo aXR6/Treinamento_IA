@@ -15,7 +15,8 @@ from config import (
     OLLAMA_EMBEDDING_MODEL, SERAFIM_EMBEDDING_MODEL,
     MINILM_L6_V2, MINILM_L12_V2, MPNET_EMBEDDING_MODEL,
     DIM_MXBAI, DIM_SERAFIM, DIM_MINILM_L6, DIM_MINIL12, DIM_MPNET,
-    OCR_THRESHOLD, validate_config
+    OCR_THRESHOLD, EVAL_STEPS, VALIDATION_SPLIT, MAX_SEQ_LENGTH,
+    validate_config
 )
 from extractors import extract_text
 from utils import setup_logging, is_valid_file, build_record, move_to_processed
@@ -103,7 +104,9 @@ def training_menu(
     allow_tf_cuda: bool,
     epochs: int,
     batch_size: int,
-) -> tuple[int, bool, int, int]:
+    eval_steps: int,
+    val_split: float,
+) -> tuple[int, bool, int, int, int, float]:
     """Exibe o submenu de treinamento."""
     while True:
         clear_screen()
@@ -115,6 +118,8 @@ def training_menu(
         print(f"3 - Selecionar tabela (atual: documents_{train_dim})")
         print(f"4 - Épocas (atual: {epochs})")
         print(f"5 - Batch size (atual: {batch_size})")
+        print(f"6 - Avaliar a cada N passos (atual: {eval_steps})")
+        print(f"7 - Porcentagem validação (atual: {val_split})")
         print("0 - Voltar")
         c = input("> ").strip()
 
@@ -129,6 +134,9 @@ def training_menu(
                 allow_auto_gpu=allow_tf_cuda,
                 epochs=epochs,
                 batch_size=batch_size,
+                eval_steps=eval_steps,
+                validation_split=val_split,
+                max_seq_length=MAX_SEQ_LENGTH,
             )
             input("ENTER para continuar…")
 
@@ -148,11 +156,25 @@ def training_menu(
             if inp.isdigit() and int(inp) > 0:
                 batch_size = int(inp)
 
+        elif c == "6":
+            inp = input(f"Avaliar a cada quantos passos? [{eval_steps}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                eval_steps = int(inp)
+
+        elif c == "7":
+            inp = input(f"Porcentagem de valida\u00e7\u00e3o (0-1) [{val_split}]: ").strip()
+            try:
+                v = float(inp)
+                if 0 < v < 1:
+                    val_split = v
+            except ValueError:
+                pass
+
         else:
             print("Opção inválida.")
             time.sleep(1)
 
-    return train_dim, allow_tf_cuda, epochs, batch_size
+    return train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split
 
 def process_file(path: str, strat: str, model: str, dim: int, device: str,
                  stats: dict, processed_root: Optional[str] = None):
@@ -231,6 +253,8 @@ def main():
     train_dim = dim
     epochs = 1
     batch_size = 1
+    eval_steps = EVAL_STEPS
+    val_split = VALIDATION_SPLIT
     stats = {"processed": 0, "errors": 0}
 
     while True:
@@ -328,12 +352,14 @@ def main():
             input("ENTER para continuar…")
 
         elif c == "7":
-            train_dim, allow_tf_cuda, epochs, batch_size = training_menu(
+            train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split = training_menu(
                 train_dim,
                 device,
                 allow_tf_cuda,
                 epochs,
                 batch_size,
+                eval_steps,
+                val_split,
             )
 
         else:
