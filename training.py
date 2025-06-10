@@ -131,6 +131,8 @@ def train_model(
 
     features = Features({"text": Value("string")})
     dataset = Dataset.from_generator(text_generator, features=features)
+    dataset_len = len(dataset)
+    logging.info(f"Total de textos carregados: {dataset_len}")
 
     def tokenize_fn(examples):
         return tokenizer(
@@ -141,6 +143,7 @@ def train_model(
     collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     resolved_device = _resolve_device(device, allow_auto_gpu)
+    logging.info(f"Dispositivo escolhido: {resolved_device}")
 
     training_args = TrainingArguments(
         output_dir=f"{base_model.replace('/', '_')}_finetuned_{dim}",
