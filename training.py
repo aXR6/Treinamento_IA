@@ -111,9 +111,15 @@ def train_model(
         logging.error("Nenhum texto encontrado para treinamento.")
         return
 
+    # Dataset.from_generator precisa serializar a função/generator para obter o
+    # fingerprint. Isso falha caso capture um generator em seu closure. Para
+    # evitar o erro "cannot pickle 'generator' object" carregamos os textos em
+    # memória antes de construir o dataset.
+    texts = [first_text]
+    texts.extend(list(texts_iter))
+
     def text_generator() -> Iterator[dict]:
-        yield {"text": first_text}
-        for txt in texts_iter:
+        for txt in texts:
             yield {"text": txt}
 
     use_cuda = _should_use_cuda(device, allow_auto_gpu)
