@@ -64,6 +64,8 @@ Cada dimensão de embedding tem sua própria tabela no schema `public`:
 CREATE TABLE IF NOT EXISTS public.documents_384 (
   id         BIGSERIAL    PRIMARY KEY,
   content    TEXT         NOT NULL,
+  question   TEXT,
+  answer     TEXT,
   metadata   JSONB        NOT NULL,
   embedding  VECTOR(384)  NOT NULL,
   tsv_full   TSVECTOR,
@@ -84,6 +86,8 @@ CREATE OR REPLACE FUNCTION public.update_tsv_full() RETURNS trigger AS $$
 BEGIN
   NEW.tsv_full :=
     setweight(to_tsvector('public.pt_en', coalesce(NEW.content, '')), 'A') ||
+    setweight(to_tsvector('public.pt_en', coalesce(NEW.question, '')), 'A') ||
+    setweight(to_tsvector('public.pt_en', coalesce(NEW.answer, '')), 'A') ||
     setweight(to_tsvector('public.pt_en', coalesce(NEW.metadata::text, '')), 'B');
   RETURN NEW;
 END;
