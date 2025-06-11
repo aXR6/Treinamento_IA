@@ -79,8 +79,17 @@ def generate_embedding(text: str, model_name: str, dim: int, device: str) -> lis
 
 
 def generate_qa(text: str) -> tuple[str, str]:
-    """Gera um par (pergunta, resposta) a partir do texto."""
+    """Gera um par (pergunta, resposta) a partir do texto.
+
+    Retorna ("", "") imediatamente quando o texto possui menos de 50
+    caracteres úteis. Caso a pipeline produza pergunta ou resposta vazia,
+    o aviso de log inclui o output cru para facilitar a depuração.
+    """
     global _QG_PIPELINE, _QA_PIPELINE
+
+    if len(text.strip()) < 50:
+        logging.info("Texto muito curto para gerar QA; pulando")
+        return "", ""
 
     if _QG_PIPELINE is None:
         try:
@@ -101,22 +110,26 @@ def generate_qa(text: str) -> tuple[str, str]:
             return "", ""
 
     try:
-        questions = _QG_PIPELINE(text)
-        if isinstance(questions, list) and questions:
-            question = questions[0] if isinstance(questions[0], str) else questions[0].get("question", "")
-        elif isinstance(questions, str):
-            question = questions
+        raw_questions = _QG_PIPELINE(text)
+        if isinstance(raw_questions, list) and raw_questions:
+            question = raw_questions[0] if isinstance(raw_questions[0], str) else raw_questions[0].get("question", "")
+        elif isinstance(raw_questions, str):
+            question = raw_questions
         else:
             question = ""
 
         answer = ""
+        qa_res = None
         if question:
             qa_res = _QA_PIPELINE({"question": question, "context": text})
             if isinstance(qa_res, dict):
                 answer = qa_res.get("answer", "")
 
         if not question or not answer:
-            logging.warning("Pergunta ou resposta vazia gerada em generate_qa")
+            logging.warning(
+                "Pergunta ou resposta vazia gerada em generate_qa - "
+                f"QG: {raw_questions!r}, QA: {qa_res!r}"
+            )
 
         return question, answer
     except Exception as e:
