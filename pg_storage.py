@@ -4,6 +4,7 @@ import logging
 import json
 import psycopg2
 import torch
+import nltk
 from adaptive_chunker import hierarchical_chunk_generator, get_sbert_model
 from sentence_transformers import CrossEncoder
 try:
@@ -27,6 +28,12 @@ from config import (
 from metrics import record_metrics
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
+# Garantir que o tokenizer do NLTK esteja disponível
+try:
+    nltk.data.find("tokenizers/punkt")
+except LookupError:
+    nltk.download("punkt", quiet=True)
 
 _CE_CACHE: dict = {}
 _QG_PIPELINE = None
@@ -146,9 +153,19 @@ def generate_qa(text: str) -> tuple[str, str]:
                     logging.error(f"Failed to load fallback pipeline: {e}")
                     return "", ""
             try:
-                res = _T2T_PIPELINE(text, max_length=64, num_beams=4)
+                hl_text = text
+                try:
+                    first_sent = nltk.sent_tokenize(text)[0]
+                    hl_text = text.replace(first_sent, f"<hl> {first_sent} <hl>", 1)
+                except Exception as e:
+                    logging.error(f"Sentence tokenization failed: {e}")
+                res = _T2T_PIPELINE(hl_text, max_length=64, num_beams=4)
                 if isinstance(res, list) and res:
-                    questions = [res[0].get("generated_text", "").strip()]
+                    first = res[0]
+                    if isinstance(first, dict):
+                        questions = [first.get("generated_text", "").strip()]
+                    else:
+                        questions = [str(first).strip()]
             except Exception as e:
                 logging.error(f"Fallback question generation failed: {e}")
                 return "", ""
