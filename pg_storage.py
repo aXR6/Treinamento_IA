@@ -7,7 +7,15 @@ import torch
 from adaptive_chunker import hierarchical_chunk_generator, get_sbert_model
 from sentence_transformers import CrossEncoder
 from question_generation import pipeline
-from config import PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE
+from config import (
+    PG_HOST,
+    PG_PORT,
+    PG_USER,
+    PG_PASSWORD,
+    PG_DATABASE,
+    QG_MODEL,
+    QA_MODEL,
+)
 from metrics import record_metrics
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
@@ -75,16 +83,20 @@ def generate_qa(text: str) -> tuple[str, str]:
 
     if _QG_PIPELINE is None:
         try:
-            _QG_PIPELINE = pipeline("question-generation")
+            _QG_PIPELINE = pipeline("question-generation", model=QG_MODEL)
         except Exception as e:
-            logging.error(f"Falha ao carregar pipeline de question generation: {e}")
+            logging.error(
+                f"Falha ao carregar pipeline de question generation ({QG_MODEL}): {e}"
+            )
             return "", ""
 
     if _QA_PIPELINE is None:
         try:
-            _QA_PIPELINE = pipeline("question-answering")
+            _QA_PIPELINE = pipeline("question-answering", model=QA_MODEL)
         except Exception as e:
-            logging.error(f"Falha ao carregar pipeline de question answering: {e}")
+            logging.error(
+                f"Falha ao carregar pipeline de question answering ({QA_MODEL}): {e}"
+            )
             return "", ""
 
     try:
