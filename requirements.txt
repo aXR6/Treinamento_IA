@@ -40,3 +40,5 @@ boto3
 requests
 pikepdf
 question-generation
+protobuf
+sentencepiece
