@@ -6,7 +6,8 @@ import psycopg2
 import torch
 from adaptive_chunker import hierarchical_chunk_generator, get_sbert_model
 from sentence_transformers import CrossEncoder
-from question_generation import pipeline
+from question_generation import pipeline as qg_pipeline
+from transformers import pipeline as hf_pipeline
 from config import (
     PG_HOST,
     PG_PORT,
@@ -83,7 +84,7 @@ def generate_qa(text: str) -> tuple[str, str]:
 
     if _QG_PIPELINE is None:
         try:
-            _QG_PIPELINE = pipeline("question-generation", model=QG_MODEL)
+            _QG_PIPELINE = qg_pipeline("question-generation", model=QG_MODEL)
         except Exception as e:
             logging.error(
                 f"Falha ao carregar pipeline de question generation ({QG_MODEL}): {e}"
@@ -92,7 +93,7 @@ def generate_qa(text: str) -> tuple[str, str]:
 
     if _QA_PIPELINE is None:
         try:
-            _QA_PIPELINE = pipeline("question-answering", model=QA_MODEL)
+            _QA_PIPELINE = hf_pipeline("question-answering", model=QA_MODEL)
         except Exception as e:
             logging.error(
                 f"Falha ao carregar pipeline de question answering ({QA_MODEL}): {e}"
