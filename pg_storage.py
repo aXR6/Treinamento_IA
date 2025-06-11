@@ -4,7 +4,16 @@ import logging
 import json
 import psycopg2
 import torch
-import nltk
+try:
+    import nltk
+    try:
+        nltk.data.find("tokenizers/punkt")
+    except LookupError:
+        nltk.download("punkt", quiet=True)
+except Exception as e:
+    logging.error(f"Failed to import nltk: {e}")
+    nltk = None
+
 from adaptive_chunker import hierarchical_chunk_generator, get_sbert_model
 from sentence_transformers import CrossEncoder
 try:
@@ -29,11 +38,6 @@ from metrics import record_metrics
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
-# Garantir que o tokenizer do NLTK esteja disponível
-try:
-    nltk.data.find("tokenizers/punkt")
-except LookupError:
-    nltk.download("punkt", quiet=True)
 
 _CE_CACHE: dict = {}
 _QG_PIPELINE = None
@@ -154,11 +158,12 @@ def generate_qa(text: str) -> tuple[str, str]:
                     return "", ""
             try:
                 hl_text = text
-                try:
-                    first_sent = nltk.sent_tokenize(text)[0]
-                    hl_text = text.replace(first_sent, f"<hl> {first_sent} <hl>", 1)
-                except Exception as e:
-                    logging.error(f"Sentence tokenization failed: {e}")
+                if nltk is not None:
+                    try:
+                        first_sent = nltk.sent_tokenize(text)[0]
+                        hl_text = text.replace(first_sent, f"<hl> {first_sent} <hl>", 1)
+                    except Exception as e:
+                        logging.error(f"Sentence tokenization failed: {e}")
                 res = _T2T_PIPELINE(hl_text, max_length=64, num_beams=4)
                 if isinstance(res, list) and res:
                     first = res[0]
@@ -175,7 +180,7 @@ def generate_qa(text: str) -> tuple[str, str]:
         answer = ""
         qa_res = None
         if question:
-            qa_res = _QA_PIPELINE({"question": question, "context": text})
+            qa_res = _QA_PIPELINE(question=question, context=text)
             if isinstance(qa_res, dict):
                 answer = qa_res.get("answer", "")
 
