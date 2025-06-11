@@ -47,6 +47,7 @@ O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
   usados para gerar perguntas e respostas (padrão `valhalla/t5-base-qa-qg-hl`).
   Para textos em português, experimente
   `pierreguillou/t5-base-qa-qg-hl-portuguese-squad_v1`.
+  **Recomenda-se que `CHUNK_SIZE` seja de no máximo 512 ao gerar perguntas e respostas.**
 - **Outros**: `CSV_FULL` e `CSV_INCR` podem apontar para arquivos CSV locais de
   vulnerabilidades (opcional).
 
