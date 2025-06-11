@@ -120,22 +120,8 @@ def train_model(
     max_seq_length : int
         Comprimento máximo das sequências (0 usa ``tokenizer.model_max_length``).
     """
-    texts_iter = _fetch_texts(dim)
-    try:
-        first_text = next(texts_iter)
-    except StopIteration:
-        logging.error("Nenhum texto encontrado para treinamento.")
-        return
-
-    # Dataset.from_generator precisa serializar a função/generator para obter o
-    # fingerprint. Isso falha caso capture um generator em seu closure. Para
-    # evitar o erro "cannot pickle 'generator' object" carregamos os textos em
-    # memória antes de construir o dataset.
-    texts = [first_text]
-    texts.extend(list(texts_iter))
-
     def text_generator() -> Iterator[dict]:
-        for txt in texts:
+        for txt in _fetch_texts(dim):
             yield {"text": txt}
 
     use_cuda = _should_use_cuda(device, allow_auto_gpu)
@@ -152,7 +138,11 @@ def train_model(
     model = AutoModelForCausalLM.from_pretrained(base_model)
 
     features = Features({"text": Value("string")})
-    dataset = Dataset.from_generator(text_generator, features=features)
+    try:
+        dataset = Dataset.from_generator(text_generator, features=features)
+    except Exception:
+        logging.error("Nenhum texto encontrado para treinamento.")
+        return
     dataset_len = len(dataset)
     logging.info(f"Total de textos carregados: {dataset_len}")
 
