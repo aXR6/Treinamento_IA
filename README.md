@@ -43,6 +43,10 @@ O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
   da geração dos embeddings.
 - **Treinamento**: `TRAINING_MODEL_NAME`, `EVAL_STEPS` e `VALIDATION_SPLIT`
   personalizam o fine-tuning de modelos da Hugging Face.
+- **Perguntas e Respostas**: `QG_MODEL` e `QA_MODEL` definem os modelos
+  usados para gerar perguntas e respostas (padrão `valhalla/t5-base-qa-qg-hl`).
+  Para textos em português, experimente
+  `pierreguillou/t5-base-qa-qg-hl-portuguese-squad_v1`.
 - **Outros**: `CSV_FULL` e `CSV_INCR` podem apontar para arquivos CSV locais de
   vulnerabilidades (opcional).
 
@@ -58,6 +62,8 @@ PG_DATABASE=vector_store
 TRAINING_MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Llama-8B
 EVAL_STEPS=500
 VALIDATION_SPLIT=0.1
+QG_MODEL=valhalla/t5-base-qa-qg-hl
+QA_MODEL=${QG_MODEL}
 ```
 
 ### Estrutura do Projeto
