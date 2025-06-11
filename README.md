@@ -100,6 +100,10 @@ QA_MODEL=${QG_MODEL}
 - `psycopg2-binary`
 - `question-generation`
 
+`pg_storage.py` tenta importar o pacote `question_generation`. Caso a
+dependência não esteja disponível, uma mensagem de erro é registrada e a função
+`generate_qa` retorna pares vazios.
+
 Todas as dependências estão listadas em `requirements.txt`.
 
 ---
