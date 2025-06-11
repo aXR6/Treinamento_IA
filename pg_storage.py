@@ -114,6 +114,10 @@ def generate_qa(text: str) -> tuple[str, str]:
             qa_res = _QA_PIPELINE({"question": question, "context": text})
             if isinstance(qa_res, dict):
                 answer = qa_res.get("answer", "")
+
+        if not question or not answer:
+            logging.warning("Pergunta ou resposta vazia gerada em generate_qa")
+
         return question, answer
     except Exception as e:
         logging.error(f"Erro ao gerar pergunta e resposta: {e}")
@@ -167,6 +171,11 @@ def save_to_postgres(filename: str,
             clean = chunk.replace("\x00", "")
             emb = generate_embedding(clean, embedding_model, embedding_dim, device_use)
             question, answer = generate_qa(clean)
+
+            if not question or not answer:
+                logging.warning(
+                    f"QA vazio no chunk {idx} do arquivo '{filename}'"
+                )
 
             # Metadata mantém todas as chaves originais + __parent e __chunk_index
             rec = {**metadata, "__parent": filename, "__chunk_index": idx,
