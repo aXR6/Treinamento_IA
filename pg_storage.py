@@ -6,7 +6,14 @@ import psycopg2
 import torch
 from adaptive_chunker import hierarchical_chunk_generator, get_sbert_model
 from sentence_transformers import CrossEncoder
-from question_generation import pipeline as qg_pipeline
+try:
+    from question_generation import pipeline as qg_pipeline
+    _QG_AVAILABLE = True
+except Exception as e:
+    logging.error(f"Falha ao importar question_generation: {e}")
+    qg_pipeline = None
+    _QG_AVAILABLE = False
+
 from transformers import pipeline as hf_pipeline
 from config import (
     PG_HOST,
@@ -89,6 +96,10 @@ def generate_qa(text: str) -> tuple[str, str]:
 
     if len(text.strip()) < 50:
         logging.info("Texto muito curto para gerar QA; pulando")
+        return "", ""
+
+    if not _QG_AVAILABLE:
+        logging.error("Modulo question_generation ausente; pulando geracao de QA")
         return "", ""
 
     if _QG_PIPELINE is None:
