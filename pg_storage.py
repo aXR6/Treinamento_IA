@@ -94,6 +94,7 @@ def generate_qa(text: str) -> tuple[str, str]:
     if _QG_PIPELINE is None:
         try:
             _QG_PIPELINE = qg_pipeline("question-generation", model=QG_MODEL)
+            logging.info(f"QG pipeline loaded with {QG_MODEL}")
         except Exception as e:
             logging.error(
                 f"Falha ao carregar pipeline de question generation ({QG_MODEL}): {e}"
@@ -103,6 +104,7 @@ def generate_qa(text: str) -> tuple[str, str]:
     if _QA_PIPELINE is None:
         try:
             _QA_PIPELINE = hf_pipeline("question-answering", model=QA_MODEL)
+            logging.info(f"QA pipeline loaded with {QA_MODEL}")
         except Exception as e:
             logging.error(
                 f"Falha ao carregar pipeline de question answering ({QA_MODEL}): {e}"
