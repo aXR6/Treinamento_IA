@@ -31,6 +31,7 @@ os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 _CE_CACHE: dict = {}
 _QG_PIPELINE = None
 _QA_PIPELINE = None
+_T2T_PIPELINE = None
 
 def get_cross_encoder(model_name: str, device: str) -> CrossEncoder:
     """Retorna CrossEncoder em cache para o dispositivo escolhido."""
@@ -92,7 +93,7 @@ def generate_qa(text: str) -> tuple[str, str]:
     caracteres úteis. Caso a pipeline produza pergunta ou resposta vazia,
     o aviso de log inclui o output cru para facilitar a depuração.
     """
-    global _QG_PIPELINE, _QA_PIPELINE
+    global _QG_PIPELINE, _QA_PIPELINE, _T2T_PIPELINE
 
     if len(text.strip()) < 50:
         logging.info("Texto muito curto para gerar QA; pulando")
@@ -124,13 +125,36 @@ def generate_qa(text: str) -> tuple[str, str]:
 
     try:
         raw_questions = _QG_PIPELINE(text)
-        if isinstance(raw_questions, list) and raw_questions:
-            question = raw_questions[0] if isinstance(raw_questions[0], str) else raw_questions[0].get("question", "")
+        if isinstance(raw_questions, list):
+            questions = [q if isinstance(q, str) else q.get("question", "") for q in raw_questions]
         elif isinstance(raw_questions, str):
-            question = raw_questions
+            questions = [raw_questions]
         else:
-            question = ""
+            questions = []
 
+        if not questions:
+            logging.warning(
+                "QG pipeline produced no questions; attempting fallback generation"
+            )
+            if _T2T_PIPELINE is None:
+                try:
+                    device_id = 0 if torch.cuda.is_available() else -1
+                    _T2T_PIPELINE = hf_pipeline(
+                        "text2text-generation", model=QG_MODEL, device=device_id
+                    )
+                except Exception as e:
+                    logging.error(f"Failed to load fallback pipeline: {e}")
+                    return "", ""
+            try:
+                res = _T2T_PIPELINE(text, max_length=64, num_beams=4)
+                if isinstance(res, list) and res:
+                    questions = [res[0].get("generated_text", "").strip()]
+            except Exception as e:
+                logging.error(f"Fallback question generation failed: {e}")
+                return "", ""
+
+        question = questions[0].strip() if questions else ""
+        
         answer = ""
         qa_res = None
         if question:
