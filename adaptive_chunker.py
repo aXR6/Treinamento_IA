@@ -6,8 +6,10 @@ import nltk
 from typing import List, Generator
 from nltk.corpus import wordnet
 from config import (
-    CHUNK_SIZE, SLIDING_WINDOW_OVERLAP_RATIO,
-    SBERT_MODEL_NAME
+    CHUNK_SIZE,
+    CHUNK_OVERLAP,
+    SLIDING_WINDOW_OVERLAP_RATIO,
+    SBERT_MODEL_NAME,
 )
 from utils import filter_paragraphs
 from sentence_transformers import SentenceTransformer
@@ -73,6 +75,12 @@ def hierarchical_chunk(text: str, metadata: dict, model_name: str = SBERT_MODEL_
     except AttributeError:
         max_tokens = tokenizer.model_max_length
 
+    if CHUNK_SIZE > 0:
+        max_tokens = CHUNK_SIZE
+    overlap_tokens = CHUNK_OVERLAP if CHUNK_OVERLAP > 0 else int(
+        max_tokens * SLIDING_WINDOW_OVERLAP_RATIO
+    )
+
     # Expansão de query (se existir no metadata)
     query = metadata.get('__query')
     if query:
@@ -98,7 +106,7 @@ def hierarchical_chunk(text: str, metadata: dict, model_name: str = SBERT_MODEL_
             from langchain.text_splitter import TokenTextSplitter
             splitter = TokenTextSplitter(
                 chunk_size=max_tokens,
-                chunk_overlap=int(max_tokens * SLIDING_WINDOW_OVERLAP_RATIO)
+                chunk_overlap=overlap_tokens
             )
             sub_chunks = splitter.split_text(para)
             chunks.extend(sub_chunks)
@@ -111,9 +119,24 @@ def hierarchical_chunk(text: str, metadata: dict, model_name: str = SBERT_MODEL_
         else:
             # Fecha chunk atual
             chunks.append("\n\n".join(current_para_group))
-            # Inicia novo grupo com este parágrafo
-            current_para_group = [para]
-            current_tok_count = tok_len
+            # Inicia novo grupo com overlap opcional
+            if overlap_tokens > 0:
+                from langchain.text_splitter import TokenTextSplitter
+                splitter = TokenTextSplitter(
+                    chunk_size=max_tokens,
+                    chunk_overlap=overlap_tokens,
+                )
+                combined = chunks[-1] + "\n\n" + para
+                new_chunks = splitter.split_text(combined)
+                current_para_group = [new_chunks[-1]]
+                current_tok_count = len(tokenizer.tokenize(new_chunks[-1]))
+                # Adiciona sub-chunks extras (exceto o último) ao resultado
+                chunks[-1] = new_chunks[0]
+                for sc in new_chunks[1:-1]:
+                    chunks.append(sc)
+            else:
+                current_para_group = [para]
+                current_tok_count = tok_len
 
     # Adiciona resto
     if current_para_group:
@@ -144,6 +167,12 @@ def hierarchical_chunk_generator(text: str, metadata: dict,
     except AttributeError:
         max_tokens = tokenizer.model_max_length
 
+    if CHUNK_SIZE > 0:
+        max_tokens = CHUNK_SIZE
+    overlap_tokens = CHUNK_OVERLAP if CHUNK_OVERLAP > 0 else int(
+        max_tokens * SLIDING_WINDOW_OVERLAP_RATIO
+    )
+
     # Expansão de query (se existir no metadata)
     query = metadata.get('__query')
     if query:
@@ -167,7 +196,7 @@ def hierarchical_chunk_generator(text: str, metadata: dict,
             from langchain.text_splitter import TokenTextSplitter
             splitter = TokenTextSplitter(
                 chunk_size=max_tokens,
-                chunk_overlap=int(max_tokens * SLIDING_WINDOW_OVERLAP_RATIO)
+                chunk_overlap=overlap_tokens
             )
             sub_chunks = splitter.split_text(para)
             for sc in sub_chunks:
@@ -180,9 +209,24 @@ def hierarchical_chunk_generator(text: str, metadata: dict,
         else:
             # Fecha chunk atual
             yield "\n\n".join(current_para_group)
-            # Inicia novo grupo com este parágrafo
-            current_para_group = [para]
-            current_tok_count = tok_len
+            # Inicia novo grupo com overlap opcional
+            if overlap_tokens > 0:
+                from langchain.text_splitter import TokenTextSplitter
+                splitter = TokenTextSplitter(
+                    chunk_size=max_tokens,
+                    chunk_overlap=overlap_tokens,
+                )
+                combined = current_para_group and ("\n\n".join(current_para_group)) or ""
+                combined = combined + "\n\n" + para
+                new_chunks = splitter.split_text(combined)
+                current_para_group = [new_chunks[-1]]
+                current_tok_count = len(tokenizer.tokenize(new_chunks[-1]))
+                yield new_chunks[0]
+                for sc in new_chunks[1:-1]:
+                    yield sc
+            else:
+                current_para_group = [para]
+                current_tok_count = tok_len
 
     # Último resto
     if current_para_group:
