@@ -115,3 +115,29 @@ def test_save_to_postgres(pg, monkeypatch):
     assert res[0]['answer'] == 'A'
     assert 'rerank_score' in res[0]
 
+
+def test_generate_qa_limits_doc_stride(pg, monkeypatch):
+    class DummyQA:
+        def __init__(self):
+            self.calls = []
+            self.tokenizer = types.SimpleNamespace(
+                model_max_length=16,
+                tokenize=lambda text: text.split(),
+            )
+
+        def __call__(self, question, context, **kwargs):
+            self.calls.append(kwargs)
+            return {"answer": "A"}
+
+    qa = DummyQA()
+    monkeypatch.setattr(pg, "_QG_AVAILABLE", True)
+    monkeypatch.setattr(pg, "_QG_PIPELINE", lambda text: ["Q"])
+    monkeypatch.setattr(pg, "_QA_PIPELINE", qa)
+    monkeypatch.setattr(pg, "MAX_SEQ_LENGTH", 32)
+
+    q, a = pg.generate_qa("word " * 40)
+    assert q and a
+    kwargs = qa.calls[0]
+    assert kwargs["doc_stride"] < qa.tokenizer.model_max_length
+    assert kwargs["max_seq_len"] <= qa.tokenizer.model_max_length
+
