@@ -1,6 +1,7 @@
 #metrics.py
 from prometheus_client import start_http_server, Counter, Histogram, Gauge
 import time
+import functools
 
 # ===============================================================
 # Métricas Prometheus para Monitoramento de Busca Semântica (RAG)
@@ -33,6 +34,7 @@ def start_metrics_server(port: int = 8000) -> None:
 
 def record_metrics(func):
     """Decorator para coletar métricas de execuções de busca RAG."""
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Incrementa contador de execuções
         QUERY_EXECUTIONS.inc()
