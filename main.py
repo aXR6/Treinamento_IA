@@ -176,6 +176,77 @@ def training_menu(
 
     return train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split
 
+
+def qa_training_menu(
+    train_dim: int,
+    device: str,
+    allow_tf_cuda: bool,
+    epochs: int,
+    batch_size: int,
+    eval_steps: int,
+    val_split: float,
+) -> tuple[int, bool, int, int, int, float]:
+    """Menu de treinamento para perguntas e respostas."""
+    while True:
+        clear_screen()
+        print("*** Menu Treinamento QA ***")
+        print("1 - Treinar modelo")
+        print(
+            f"2 - Transformers detectar GPU automaticamente: {'Sim' if allow_tf_cuda else 'Não'}"
+        )
+        print(f"3 - Selecionar tabela (atual: documents_{train_dim})")
+        print(f"4 - Épocas (atual: {epochs})")
+        print(f"5 - Batch size (atual: {batch_size})")
+        print(f"6 - Avaliar a cada N passos (atual: {eval_steps})")
+        print(f"7 - Porcentagem validação (atual: {val_split})")
+        print("0 - Voltar")
+        c = input("> ").strip()
+
+        if c == "0":
+            break
+        elif c == "1":
+            from training import train_qa_model
+            train_qa_model(
+                train_dim,
+                device,
+                allow_auto_gpu=allow_tf_cuda,
+                epochs=epochs,
+                batch_size=batch_size,
+                eval_steps=eval_steps,
+                validation_split=val_split,
+                max_seq_length=MAX_SEQ_LENGTH,
+            )
+            input("ENTER para continuar…")
+        elif c == "2":
+            allow_tf_cuda = toggle_tf_cuda(allow_tf_cuda)
+        elif c == "3":
+            train_dim = select_dimension(train_dim)
+        elif c == "4":
+            inp = input(f"Número de épocas [{epochs}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                epochs = int(inp)
+        elif c == "5":
+            inp = input(f"Batch size [{batch_size}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                batch_size = int(inp)
+        elif c == "6":
+            inp = input(f"Avaliar a cada quantos passos? [{eval_steps}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                eval_steps = int(inp)
+        elif c == "7":
+            inp = input(f"Porcentagem de validação (0-1) [{val_split}]: ").strip()
+            try:
+                v = float(inp)
+                if 0 < v < 1:
+                    val_split = v
+            except ValueError:
+                pass
+        else:
+            print("Opção inválida.")
+            time.sleep(1)
+
+    return train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split
+
 def process_file(path: str, strat: str, model: str, dim: int, device: str,
                  stats: dict, processed_root: Optional[str] = None):
     """
@@ -267,6 +338,7 @@ def main():
         print("5 - Arquivo")
         print("6 - Pasta")
         print("7 - Treinamento")
+        print("8 - Treinamento QA")
         print("0 - Sair")
         c = input("> ").strip()
 
@@ -353,6 +425,17 @@ def main():
 
         elif c == "7":
             train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split = training_menu(
+                train_dim,
+                device,
+                allow_tf_cuda,
+                epochs,
+                batch_size,
+                eval_steps,
+                val_split,
+            )
+
+        elif c == "8":
+            train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split = qa_training_menu(
                 train_dim,
                 device,
                 allow_tf_cuda,
