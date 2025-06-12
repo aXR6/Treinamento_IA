@@ -14,7 +14,12 @@ except Exception as e:
     logging.error(f"Failed to import nltk: {e}")
     nltk = None
 
-from adaptive_chunker import hierarchical_chunk_generator, get_sbert_model
+try:
+    from adaptive_chunker import hierarchical_chunk_generator, get_sbert_model
+except Exception as e:
+    logging.error(f"Failed to import adaptive_chunker: {e}")
+    hierarchical_chunk_generator = None  # type: ignore
+    get_sbert_model = None  # type: ignore
 from sentence_transformers import CrossEncoder
 try:
     from question_generation import pipeline as qg_pipeline
@@ -187,24 +192,31 @@ def generate_qa(text: str) -> tuple[str, str]:
                 tok_len = 0
 
             try:
+                q_len = len(_QA_PIPELINE.tokenizer.tokenize(question))
+            except Exception:
+                q_len = 0
+
+            try:
                 model_max_len = int(_QA_PIPELINE.tokenizer.model_max_length)
             except Exception:
                 model_max_len = MAX_SEQ_LENGTH
 
-            max_seq = MAX_SEQ_LENGTH or model_max_len
-            max_seq = min(max_seq, model_max_len)
+            max_seq = min(MAX_SEQ_LENGTH or model_max_len, model_max_len)
 
             try:
-                special_tokens = _QA_PIPELINE.tokenizer.num_special_tokens_to_add(pair=True)
+                specials = _QA_PIPELINE.tokenizer.num_special_tokens_to_add(pair=True)
             except Exception:
-                special_tokens = 0
+                specials = 0
 
-            usable_len = max_seq - special_tokens
-            if usable_len < 2:
-                usable_len = max_seq
+            max_len = max_seq - specials
 
             doc_stride = max(1, min(64, tok_len - 1))
-            doc_stride = min(doc_stride, usable_len - 1)
+            doc_stride = min(doc_stride, max_len - 1)
+
+            if doc_stride <= 0:
+                doc_stride = 1
+
+            logging.debug(f"QA doc_stride={doc_stride} max_len={max_len}")
 
             kwargs = {"doc_stride": doc_stride, "max_seq_len": max_seq}
             qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
