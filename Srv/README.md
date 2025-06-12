@@ -44,7 +44,7 @@ Este repositório contém um microserviço HTTP desenvolvido com [FastAPI](https
 
 ## Requisitos
 
-- Python 3.8+
+- Python 3.9+
 - GPU (opcional, recomendado para alto desempenho)
 - Acesso à internet (para download dos modelos na primeira execução)
 

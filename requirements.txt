@@ -1,4 +1,5 @@
 #requirements.txt
+# Requires Python 3.9+ (some scripts use 3.9 features)
 # === Gestão de variáveis de ambiente ===
 python-dotenv
 

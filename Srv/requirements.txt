@@ -1,3 +1,4 @@
+# Requires Python 3.9+ (server uses 3.9 features)
 fastapi
 uvicorn
 torch
