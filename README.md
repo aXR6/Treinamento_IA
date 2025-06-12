@@ -61,6 +61,8 @@ PG_PORT=5432
 PG_USER=vector_store
 PG_PASSWORD=senha
 PG_DATABASE=vector_store
+PG_DB_PDF=vector_store_pdf
+PG_DB_QA=vector_store_pdf_qs
 
 TRAINING_MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Llama-8B
 EVAL_STEPS=500
@@ -86,7 +88,7 @@ QA_MODEL=${QG_MODEL}
 1. Defina o modelo desejado em `TRAINING_MODEL_NAME` no `.env`. Se não definido, será usado `deepseek-ai/DeepSeek-R1-Distill-Llama-8B`.
 2. Processe seus documentos normalmente (opções 1 a 6 do menu) para popular a tabela `public.documents_<dim>`.
 3. Escolha a dimensão (opção 3) e o dispositivo (opção 4).
-4. Acesse **7 - Treinamento**. No submenu você pode:
+4. Acesse **7 - Treinamento** ou **8 - Treinamento QA**. Nos submenus você pode:
    - Definir a tabela de origem (opção 3).
    - Ajustar épocas, batch size, passos de avaliação e porcentagem de validação.
    - Ativar ou não a detecção automática de GPU.

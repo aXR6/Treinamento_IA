@@ -18,6 +18,8 @@ PG_PORT     = int(os.getenv("PG_PORT", "5432"))
 PG_USER     = os.getenv("PG_USER")
 PG_PASSWORD = os.getenv("PG_PASSWORD")
 PG_DATABASE = os.getenv("PG_DATABASE")
+PG_DB_PDF   = os.getenv("PG_DB_PDF", "vector_store_pdf")
+PG_DB_QA    = os.getenv("PG_DB_QA", "vector_store_pdf_qs")
 
 # — CSV locais (NVD)
 CSV_FULL = os.getenv("CSV_FULL")
