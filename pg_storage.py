@@ -194,8 +194,17 @@ def generate_qa(text: str) -> tuple[str, str]:
             max_seq = MAX_SEQ_LENGTH or model_max_len
             max_seq = min(max_seq, model_max_len)
 
+            try:
+                special_tokens = _QA_PIPELINE.tokenizer.num_special_tokens_to_add(pair=True)
+            except Exception:
+                special_tokens = 0
+
+            usable_len = max_seq - special_tokens
+            if usable_len < 2:
+                usable_len = max_seq
+
             doc_stride = max(1, min(64, tok_len - 1))
-            doc_stride = min(doc_stride, max_seq - 1)
+            doc_stride = min(doc_stride, usable_len - 1)
 
             kwargs = {"doc_stride": doc_stride, "max_seq_len": max_seq}
             qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
