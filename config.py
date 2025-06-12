@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 # definidas no ambiente do sistema.
 load_dotenv(Path(__file__).resolve().with_name('.env'), override=True)
 
+# Valor padrao seguro para o comprimento maximo de sequencias
+DEFAULT_MAX_SEQ_LENGTH = 128
+
 # — NVD API Key (para incremental)
 NVD_API_KEY = os.getenv("NVD_API_KEY")
 
@@ -60,8 +63,20 @@ TESSERACT_CONFIG = os.getenv("TESSERACT_CONFIG", "")
 CHUNK_SIZE                   = int(os.getenv("CHUNK_SIZE", "0"))
 CHUNK_OVERLAP                = int(os.getenv("CHUNK_OVERLAP", "0"))
 SLIDING_WINDOW_OVERLAP_RATIO = float(os.getenv("SLIDING_WINDOW_OVERLAP_RATIO", "0.0"))
-MAX_SEQ_LENGTH               = int(os.getenv("MAX_SEQ_LENGTH", "0"))
-SEPARATORS                   = os.getenv("SEPARATORS", "").split("|")
+
+# Comprimento maximo de sequencia para pipelines de QA.
+# Se nao especificado ou for muito pequeno, usa DEFAULT_MAX_SEQ_LENGTH.
+try:
+    MAX_SEQ_LENGTH = int(os.getenv("MAX_SEQ_LENGTH", str(DEFAULT_MAX_SEQ_LENGTH)))
+except ValueError:
+    MAX_SEQ_LENGTH = DEFAULT_MAX_SEQ_LENGTH
+if MAX_SEQ_LENGTH < 8:
+    logging.warning(
+        "MAX_SEQ_LENGTH=%s invalido; usando %s", MAX_SEQ_LENGTH, DEFAULT_MAX_SEQ_LENGTH
+    )
+    MAX_SEQ_LENGTH = DEFAULT_MAX_SEQ_LENGTH
+
+SEPARATORS = os.getenv("SEPARATORS", "").split("|")
 
 # --- Parâmetros de treinamento
 EVAL_STEPS       = int(os.getenv("EVAL_STEPS", "500"))

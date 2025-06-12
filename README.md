@@ -42,7 +42,8 @@ O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
   `PDF2IMAGE_TIMEOUT` controlam a extração de texto via OCR.
 - **Chunking**: `CHUNK_SIZE`, `CHUNK_OVERLAP`, `SLIDING_WINDOW_OVERLAP_RATIO`,
   `MAX_SEQ_LENGTH` e `SEPARATORS` determinam como os textos são divididos antes
-  da geração dos embeddings.
+  da geração dos embeddings. Caso `MAX_SEQ_LENGTH` não seja definido, o padrão
+  é `128`.
 - **Treinamento**: `TRAINING_MODEL_NAME`, `EVAL_STEPS` e `VALIDATION_SPLIT`
   personalizam o fine-tuning de modelos da Hugging Face.
 - **Perguntas e Respostas**: `QG_MODEL` e `QA_MODEL` definem os modelos
