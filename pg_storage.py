@@ -211,9 +211,10 @@ def generate_qa(text: str) -> tuple[str, str]:
             max_len = max_seq - specials
 
             doc_stride = max(1, min(64, tok_len - 1))
-            doc_stride = min(doc_stride, max_len - 1)
-
-            if doc_stride <= 0:
+            available = max_len - q_len
+            if available > 1:
+                doc_stride = min(doc_stride, available - 1)
+            else:
                 doc_stride = 1
 
             logging.debug(f"QA doc_stride={doc_stride} max_len={max_len}")

@@ -123,6 +123,7 @@ def test_generate_qa_limits_doc_stride(pg, monkeypatch):
             self.tokenizer = types.SimpleNamespace(
                 model_max_length=16,
                 tokenize=lambda text: text.split(),
+                num_special_tokens_to_add=lambda pair=True: 2,
             )
 
         def __call__(self, question, context, **kwargs):
@@ -138,6 +139,8 @@ def test_generate_qa_limits_doc_stride(pg, monkeypatch):
     q, a = pg.generate_qa("word " * 40)
     assert q and a
     kwargs = qa.calls[0]
-    assert kwargs["doc_stride"] < qa.tokenizer.model_max_length
+    specials = qa.tokenizer.num_special_tokens_to_add(pair=True)
+    available = qa.tokenizer.model_max_length - specials - len(q.split())
+    assert kwargs["doc_stride"] < available
     assert kwargs["max_seq_len"] <= qa.tokenizer.model_max_length
 
