@@ -17,9 +17,9 @@ pymupdf4llm
 # === Chunking semântico / embeddings / NLP ===
 langchain
 langchain-community
-sentence-transformers>=2.2.0
-transformers>=4.30.0
-torch>=1.11.0
+sentence-transformers
+transformers
+torch
 scikit-learn
 nltk
 datasets
