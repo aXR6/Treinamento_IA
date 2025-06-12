@@ -191,6 +191,14 @@ def generate_qa(text: str) -> tuple[str, str]:
                 kwargs["max_seq_len"] = MAX_SEQ_LENGTH
                 if doc_stride >= MAX_SEQ_LENGTH:
                     kwargs["doc_stride"] = max(1, MAX_SEQ_LENGTH - 1)
+                    doc_stride = kwargs["doc_stride"]
+            else:
+                try:
+                    max_len = _QA_PIPELINE.tokenizer.model_max_length
+                    if doc_stride >= max_len:
+                        kwargs["doc_stride"] = max(1, max_len - 1)
+                except Exception:
+                    pass
             qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
             if isinstance(qa_res, dict):
                 answer = qa_res.get("answer", "")
