@@ -33,6 +33,7 @@ from config import (
     PG_DATABASE,
     QG_MODEL,
     QA_MODEL,
+    MAX_SEQ_LENGTH,
 )
 from metrics import record_metrics
 
@@ -180,7 +181,17 @@ def generate_qa(text: str) -> tuple[str, str]:
         answer = ""
         qa_res = None
         if question:
-            qa_res = _QA_PIPELINE(question=question, context=text)
+            try:
+                tok_len = len(_QA_PIPELINE.tokenizer.tokenize(text))
+            except Exception:
+                tok_len = 0
+            doc_stride = max(1, min(64, tok_len - 1))
+            kwargs = {"doc_stride": doc_stride}
+            if MAX_SEQ_LENGTH:
+                kwargs["max_seq_len"] = MAX_SEQ_LENGTH
+                if doc_stride >= MAX_SEQ_LENGTH:
+                    kwargs["doc_stride"] = max(1, MAX_SEQ_LENGTH - 1)
+            qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
             if isinstance(qa_res, dict):
                 answer = qa_res.get("answer", "")
 
