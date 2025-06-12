@@ -9,6 +9,8 @@
 
 ### Instalação
 
+Certifique-se de ter o Python 3.9 ou superior instalado.
+
 Clone o repositório e utilize o script `init-env.sh` para criar e ativar o
 ambiente virtual automaticamente:
 
