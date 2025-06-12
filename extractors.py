@@ -109,10 +109,10 @@ class PyMuPDF4LLMStrategy:
 class ImageOCRStrategy:
     def extract(self, path: str) -> str:
         try:
-            img = Image.open(path)
-            return pytesseract.image_to_string(
-                img, lang=OCR_LANGUAGES, config=TESSERACT_CONFIG
-            )
+            with Image.open(path) as img:
+                return pytesseract.image_to_string(
+                    img, lang=OCR_LANGUAGES, config=TESSERACT_CONFIG
+                )
         except Exception as e:
             logging.error(f"Erro ImageOCRStrategy: {e}")
             return ""
