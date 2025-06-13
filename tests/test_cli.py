@@ -65,4 +65,5 @@ def test_select_functions(monkeypatch):
     assert main.select_strategy('pypdf') == main.STRATEGY_OPTIONS[1]
     assert main.select_embedding('m1') == main.EMBED_MODELS['2']
     assert main.select_dimension(1) == main.DIMENSIONS['2']
+    assert main.select_database('d_pdf') == main.DB_OPTIONS['2']
 
