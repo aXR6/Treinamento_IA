@@ -54,9 +54,17 @@ O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
   A função `generate_qa` limita automaticamente `doc_stride` para nunca exceder o
   tamanho máximo suportado pelo tokenizer. Use `QA_EXPLICIT_PROMPT` para gerar
   respostas com `model.generate` a partir de um prompt "question: ... context:
-  ...". Atenção: somente modelos seq2seq (ex.: `t5-base-qa-qg-hl`) possuem esse
-  método. Modelos de QA clássicos, como `Narrativa/mT5-base-finetuned-tydiQA-xqa`,
-  utilizam `AutoModelForQuestionAnswering` e não implementam `generate`.
+  ...". Modelos generativos como `Narrativa/mT5-base-finetuned-tydiQA-xqa` devem
+  ser carregados com `AutoModelForCausalLM` para que `generate` funcione. Exemplo:
+
+  ```python
+  from transformers import AutoTokenizer, AutoModelForCausalLM
+  tok = AutoTokenizer.from_pretrained("Narrativa/mT5-base-finetuned-tydiQA-xqa")
+  model = AutoModelForCausalLM.from_pretrained(
+      "Narrativa/mT5-base-finetuned-tydiQA-xqa")
+  prompt = f"question: {question_text} context: {context_text}"
+  answer = tok.decode(model.generate(**tok(prompt, return_tensors='pt'))[0])
+  ```
 - **Outros**: `CSV_FULL` e `CSV_INCR` podem apontar para arquivos CSV locais de
   vulnerabilidades (opcional).
 
