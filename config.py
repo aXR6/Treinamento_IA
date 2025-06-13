@@ -82,6 +82,12 @@ SEPARATORS = os.getenv("SEPARATORS", "").split("|")
 # --- Parâmetros de treinamento
 EVAL_STEPS       = int(os.getenv("EVAL_STEPS", "500"))
 VALIDATION_SPLIT = float(os.getenv("VALIDATION_SPLIT", "0.1"))
+# Hiperpar\u00e2metros adicionais para o fine-tuning
+LEARNING_RATE               = float(os.getenv("LEARNING_RATE", "5e-5"))
+WEIGHT_DECAY                = float(os.getenv("WEIGHT_DECAY", "0.01"))
+WARMUP_STEPS                = int(os.getenv("WARMUP_STEPS", "100"))
+GRADIENT_ACCUMULATION_STEPS = int(os.getenv("GRADIENT_ACCUMULATION_STEPS", "1"))
+LR_SCHEDULER_TYPE           = os.getenv("LR_SCHEDULER_TYPE", "linear")
 
 def validate_config():
     missing = []

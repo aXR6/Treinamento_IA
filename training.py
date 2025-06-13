@@ -26,6 +26,11 @@ from config import (
     PG_DB_PDF,
     PG_DB_QA,
     TRAINING_MODEL_NAME,
+    LEARNING_RATE,
+    WEIGHT_DECAY,
+    WARMUP_STEPS,
+    GRADIENT_ACCUMULATION_STEPS,
+    LR_SCHEDULER_TYPE,
 )
 
 def _fetch_texts(dim: int, db_name: str, batch_size: int = 1000) -> Iterator[str]:
@@ -140,6 +145,11 @@ def train_model(
     eval_steps: int = 500,
     validation_split: float = 0.1,
     max_seq_length: int = 0,
+    learning_rate: float = LEARNING_RATE,
+    weight_decay: float = WEIGHT_DECAY,
+    warmup_steps: int = WARMUP_STEPS,
+    gradient_accumulation_steps: int = GRADIENT_ACCUMULATION_STEPS,
+    lr_scheduler_type: str = LR_SCHEDULER_TYPE,
 ) -> None:
     """Ajusta um modelo Hugging Face usando textos do PostgreSQL.
 
@@ -217,6 +227,16 @@ def train_model(
         else:
             base_args["logging_steps"] = 10
 
+        base_args.update(
+            {
+                "learning_rate": learning_rate,
+                "weight_decay": weight_decay,
+                "warmup_steps": warmup_steps,
+                "gradient_accumulation_steps": gradient_accumulation_steps,
+                "lr_scheduler_type": lr_scheduler_type,
+            }
+        )
+
         training_args = TrainingArguments(**base_args)
 
         try:
@@ -279,6 +299,11 @@ def train_qa_model(
     eval_steps: int = 500,
     validation_split: float = 0.1,
     max_seq_length: int = 0,
+    learning_rate: float = LEARNING_RATE,
+    weight_decay: float = WEIGHT_DECAY,
+    warmup_steps: int = WARMUP_STEPS,
+    gradient_accumulation_steps: int = GRADIENT_ACCUMULATION_STEPS,
+    lr_scheduler_type: str = LR_SCHEDULER_TYPE,
 ) -> None:
     """Ajusta modelo usando pares pergunta/resposta do PostgreSQL."""
 
@@ -347,6 +372,16 @@ def train_qa_model(
             })
         else:
             base_args["logging_steps"] = 10
+
+        base_args.update(
+            {
+                "learning_rate": learning_rate,
+                "weight_decay": weight_decay,
+                "warmup_steps": warmup_steps,
+                "gradient_accumulation_steps": gradient_accumulation_steps,
+                "lr_scheduler_type": lr_scheduler_type,
+            }
+        )
 
         training_args = TrainingArguments(**base_args)
 

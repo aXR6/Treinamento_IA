@@ -44,7 +44,9 @@ O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
   `MAX_SEQ_LENGTH` e `SEPARATORS` determinam como os textos são divididos antes
   da geração dos embeddings. Caso `MAX_SEQ_LENGTH` não seja definido, o padrão
   é `128`.
-- **Treinamento**: `TRAINING_MODEL_NAME`, `EVAL_STEPS` e `VALIDATION_SPLIT`
+- **Treinamento**: `TRAINING_MODEL_NAME`, `EVAL_STEPS`, `VALIDATION_SPLIT`,
+  `LEARNING_RATE`, `WEIGHT_DECAY`, `WARMUP_STEPS`,
+  `GRADIENT_ACCUMULATION_STEPS` e `LR_SCHEDULER_TYPE`
   personalizam o fine-tuning de modelos da Hugging Face.
 - **Perguntas e Respostas**: `QG_MODEL` e `QA_MODEL` definem os modelos
   usados para gerar perguntas e respostas (padrão `valhalla/t5-base-qa-qg-hl`).
@@ -101,6 +103,11 @@ PG_DB_QA=vector_store_pdf_qs
 TRAINING_MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Llama-8B
 EVAL_STEPS=500
 VALIDATION_SPLIT=0.1
+LEARNING_RATE=5e-5
+WEIGHT_DECAY=0.01
+WARMUP_STEPS=100
+GRADIENT_ACCUMULATION_STEPS=1
+LR_SCHEDULER_TYPE=linear
 QG_MODEL=valhalla/t5-base-qa-qg-hl
 QA_MODEL=${QG_MODEL}
 # Ativa prompt explicito no QA (opcional)
