@@ -39,7 +39,26 @@ def pg(monkeypatch):
     monkeypatch.setitem(sys.modules, 'sentence_transformers', st_mod)
     qg_mod = types.ModuleType('question_generation'); qg_mod.pipeline = lambda *a, **k: None
     monkeypatch.setitem(sys.modules, 'question_generation', qg_mod)
-    tf_mod = types.ModuleType('transformers'); tf_mod.pipeline = lambda *a, **k: None
+    tf_mod = types.ModuleType('transformers')
+    tf_mod.pipeline = lambda *a, **k: None
+    class DummyTok:
+        def __call__(self, text, return_tensors='pt'):
+            return {'input_ids': [0]}
+        def decode(self, ids, skip_special_tokens=True):
+            return 'A'
+    class DummyModel:
+        def __init__(self, *a, **k):
+            pass
+        def generate(self, **k):
+            return [[1]]
+        def to(self, device):
+            return self
+        @property
+        def device(self):
+            return 'cpu'
+    tf_mod.AutoTokenizer = types.SimpleNamespace(from_pretrained=lambda m: DummyTok())
+    tf_mod.AutoModelForSeq2SeqLM = types.SimpleNamespace(from_pretrained=lambda m: DummyModel())
+    tf_mod.AutoModelForCausalLM = types.SimpleNamespace(from_pretrained=lambda m: DummyModel())
     monkeypatch.setitem(sys.modules, 'transformers', tf_mod)
     import pg_storage
     importlib.reload(pg_storage)
@@ -166,6 +185,19 @@ def test_generate_qa_explicit_prompt_fallback(pg, monkeypatch):
     monkeypatch.setattr(pg, "_QA_PIPELINE", qa)
     monkeypatch.setattr(pg, "MAX_SEQ_LENGTH", 32)
     monkeypatch.setattr(pg, "QA_EXPLICIT_PROMPT", True)
+
+    class FailModel:
+        def generate(self, **k):
+            raise RuntimeError("fail")
+        def to(self, device):
+            return self
+        @property
+        def device(self):
+            return 'cpu'
+
+    tf = sys.modules['transformers']
+    monkeypatch.setattr(tf.AutoModelForSeq2SeqLM, 'from_pretrained', lambda m: FailModel())
+    monkeypatch.setattr(tf.AutoTokenizer, 'from_pretrained', lambda m: types.SimpleNamespace(__call__=lambda text, return_tensors='pt': {'input_ids':[0]}, decode=lambda ids, skip_special_tokens=True: 'A'))
 
     q, a = pg.generate_qa("word " * 40)
     assert q == "Q"
