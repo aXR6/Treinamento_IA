@@ -242,7 +242,8 @@ def save_to_postgres(filename: str,
                      metadata: dict,
                      embedding_model: str,
                      embedding_dim: int,
-                     device: str) -> list[dict]:
+                     device: str,
+                     db_name: str = PG_DB_PDF) -> list[dict]:
     """
     Insere no PostgreSQL cada chunk gerado em streaming pelo hierarchical_chunk_generator.
     Retorna uma lista de dicionários contendo:
@@ -251,6 +252,8 @@ def save_to_postgres(filename: str,
       - 'metadata': metadados JSONB originais + __parent e __chunk_index.
     Após inserir todos os chunks, se houver chave '__query' em metadata, executa re-ranking
     com CrossEncoder e adiciona o campo 'rerank_score' em cada dicionário antes de ordenar.
+    O parâmetro ``db_name`` permite escolher qual banco de dados será utilizado,
+    padrão ``PG_DB_PDF``.
     """
     conn = None
     inserted = []
@@ -270,7 +273,7 @@ def save_to_postgres(filename: str,
         conn = psycopg2.connect(
             host=PG_HOST,
             port=PG_PORT,
-            dbname=PG_DB_PDF,
+            dbname=db_name,
             user=PG_USER,
             password=PG_PASSWORD
         )

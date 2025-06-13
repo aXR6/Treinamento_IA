@@ -16,6 +16,7 @@ from config import (
     MINILM_L6_V2, MINILM_L12_V2, MPNET_EMBEDDING_MODEL,
     DIM_MXBAI, DIM_SERAFIM, DIM_MINILM_L6, DIM_MINIL12, DIM_MPNET,
     OCR_THRESHOLD, EVAL_STEPS, VALIDATION_SPLIT, MAX_SEQ_LENGTH,
+    PG_DB_PDF, PG_DB_QA,
     validate_config
 )
 from extractors import extract_text
@@ -47,6 +48,10 @@ DIMENSIONS = {
     "3": DIM_MINILM_L6,
     "4": DIM_MINIL12,
     "5": DIM_MPNET
+}
+DB_OPTIONS = {
+    "1": PG_DB_PDF,
+    "2": PG_DB_QA,
 }
 
 def select_device(current: str) -> str:
@@ -97,6 +102,13 @@ def select_dimension(current: int) -> int:
         print(f"{k} - {d}")
     c = input(f"Escolha [{current}]: ").strip()
     return DIMENSIONS.get(c, current)
+
+def select_database(current: str) -> str:
+    print("\n*** Selecione Banco de Dados ***")
+    for k, d in DB_OPTIONS.items():
+        print(f"{k} - {d}")
+    c = input(f"Escolha [{current}]: ").strip()
+    return DB_OPTIONS.get(c, current)
 
 def training_menu(
     train_dim: int,
@@ -248,7 +260,7 @@ def qa_training_menu(
     return train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split
 
 def process_file(path: str, strat: str, model: str, dim: int, device: str,
-                 stats: dict, processed_root: Optional[str] = None):
+                 db_name: str, stats: dict, processed_root: Optional[str] = None):
     """
     Processa um único arquivo: extrai texto, gera embeddings e salva no PostgreSQL.
     Agora o save_to_postgres retorna a lista completa de registros inseridos,
@@ -282,7 +294,7 @@ def process_file(path: str, strat: str, model: str, dim: int, device: str,
     try:
         inserted_list = save_to_postgres(
             filename, rec['text'], rec['info'],
-            model, dim, device
+            model, dim, device, db_name
         )
         stats['processed'] += 1
 
@@ -322,6 +334,7 @@ def main():
     device = "auto"
     allow_tf_cuda = True
     train_dim = dim
+    db_name = PG_DB_PDF
     epochs = 1
     batch_size = 1
     eval_steps = EVAL_STEPS
@@ -335,10 +348,11 @@ def main():
         print(f"2 - Embedding  (atual: {model})")
         print(f"3 - Dimensão   (atual: {dim})")
         print(f"4 - Dispositivo (atual: {device})")
-        print("5 - Arquivo")
-        print("6 - Pasta")
-        print("7 - Treinamento")
-        print("8 - Treinamento QA")
+        print(f"5 - Banco     (atual: {db_name})")
+        print("6 - Arquivo")
+        print("7 - Pasta")
+        print("8 - Treinamento")
+        print("9 - Treinamento QA")
         print("0 - Sair")
         c = input("> ").strip()
 
@@ -359,6 +373,9 @@ def main():
             device = select_device(device)
 
         elif c == "5":
+            db_name = select_database(db_name)
+
+        elif c == "6":
             # Modo “Arquivo”: processa apenas um PDF
             f = input("Arquivo: ").strip()
             if not f:
@@ -367,14 +384,14 @@ def main():
                 continue
 
             start = time.perf_counter()
-            process_file(f, strat, model, dim, device, stats,
+            process_file(f, strat, model, dim, device, db_name, stats,
                          os.path.dirname(f))
             dt = time.perf_counter() - start
 
             print(f"\n→ Tempo gasto: {dt:.2f}s  •  Processados: {stats['processed']}  •  Erros: {stats['errors']}")
             input("ENTER para continuar…")
 
-        elif c == "6":
+        elif c == "7":
             # Modo “Pasta”: varre todos os arquivos de dentro de um diretório
             d = input("Pasta: ").strip()
             if not d or not os.path.isdir(d):
@@ -408,7 +425,7 @@ def main():
                 pbar.set_description(
                     f"Processando → {basename} | Strat: {strat} | Emb: {model} | Dim: {dim} | Dev: {device}"
                 )
-                process_file(path, strat, model, dim, device, stats, d)
+                process_file(path, strat, model, dim, device, db_name, stats, d)
                 pbar.set_postfix({"P": stats['processed'], "E": stats['errors']})
                 # Coleta lixo após cada arquivo
                 try:
@@ -423,7 +440,7 @@ def main():
             print(f"  Processados: {stats['processed']}  •  Erros: {stats['errors']}  •  Tempo total: {dt:.2f}s")
             input("ENTER para continuar…")
 
-        elif c == "7":
+        elif c == "8":
             train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split = training_menu(
                 train_dim,
                 device,
@@ -434,7 +451,7 @@ def main():
                 val_split,
             )
 
-        elif c == "8":
+        elif c == "9":
             train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split = qa_training_menu(
                 train_dim,
                 device,
