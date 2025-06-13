@@ -61,6 +61,26 @@ def get_cross_encoder(model_name: str, device: str) -> CrossEncoder:
             logging.info(f"Carregando CrossEncoder '{model_name}' em {device}…")
             _CE_CACHE[key] = CrossEncoder(model_name, device=device)
             logging.info(f"CrossEncoder '{model_name}' carregado com sucesso em {device}.")
+        except RuntimeError as e:
+            msg = str(e).lower()
+            if "out of memory" in msg and device != "cpu":
+                logging.error(
+                    f"Falha ao carregar CrossEncoder '{model_name}' em {device} devido a falta de memória: {e}; usando CPU"
+                )
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                cpu_key = (model_name, "cpu")
+                if cpu_key not in _CE_CACHE:
+                    _CE_CACHE[cpu_key] = CrossEncoder(model_name, device="cpu")
+                _CE_CACHE[key] = _CE_CACHE[cpu_key]
+                logging.info(
+                    f"CrossEncoder '{model_name}' carregado com sucesso em CPU (fallback)."
+                )
+            else:
+                logging.error(
+                    f"Falha ao carregar CrossEncoder '{model_name}' em {device}: {e}"
+                )
+                raise
         except Exception as e:
             logging.error(f"Falha ao carregar CrossEncoder '{model_name}' em {device}: {e}")
             raise
