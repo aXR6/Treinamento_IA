@@ -56,6 +56,24 @@ O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
 - **Outros**: `CSV_FULL` e `CSV_INCR` podem apontar para arquivos CSV locais de
   vulnerabilidades (opcional).
 
+#### TyDiQA
+
+Defina `QG_MODEL` como
+`Narrativa/mT5-base-finetuned-tydiQA-question-generation` e `QA_MODEL` como
+`Narrativa/mT5-base-finetuned-tydiQA-xqa`. A cobertura inclui 11 idiomas
+(Arabic, Bengali, English, Finnish, Indonesian, Japanese, Korean, Russian,
+Swahili, Telugu e Thai), portanto não há suporte para português.
+
+```python
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+tok = AutoTokenizer.from_pretrained("Narrativa/mT5-base-finetuned-tydiQA-question-generation")
+model = AutoModelForSeq2SeqLM.from_pretrained("Narrativa/mT5-base-finetuned-tydiQA-question-generation")
+prompt = f"answer: {answer_text} context: {context_text}"
+question = tok.decode(model.generate(**tok(prompt, return_tensors='pt'))[0])
+```
+
+O prompt precisa dos prefixos `answer:` e `context:`.
+
 #### Exemplo simplificado de `.env`
 
 ```env
@@ -71,6 +89,8 @@ EVAL_STEPS=500
 VALIDATION_SPLIT=0.1
 QG_MODEL=valhalla/t5-base-qa-qg-hl
 QA_MODEL=${QG_MODEL}
+# QG_MODEL=Narrativa/mT5-base-finetuned-tydiQA-question-generation
+# QA_MODEL=Narrativa/mT5-base-finetuned-tydiQA-xqa
 ```
 
 ### Estrutura do Projeto
