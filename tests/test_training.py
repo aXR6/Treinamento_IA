@@ -1,4 +1,5 @@
 import importlib
+import os
 import types
 import sys
 
@@ -14,8 +15,8 @@ def training_module(monkeypatch):
     monkeypatch.setitem(sys.modules, 'torch', dummy_torch)
 
     tf = types.ModuleType('transformers')
-    tf.AutoTokenizer = object
-    tf.AutoModelForCausalLM = object
+    tf.AutoTokenizer = types.SimpleNamespace(from_pretrained=lambda *a, **k: object())
+    tf.AutoModelForCausalLM = types.SimpleNamespace(from_pretrained=lambda *a, **k: object())
     tf.Trainer = object
     tf.TrainingArguments = object
     tf.DataCollatorForLanguageModeling = object
@@ -27,9 +28,13 @@ def training_module(monkeypatch):
     monkeypatch.setitem(sys.modules, 'tqdm', tq)
 
     ds = types.ModuleType('datasets')
-    ds.Dataset = object
-    ds.Features = object
-    ds.Value = object
+    def from_generator(gen, features=None):
+        gen = gen()
+        next(gen)
+        return []
+    ds.Dataset = types.SimpleNamespace(from_generator=from_generator)
+    ds.Features = lambda *a, **k: None
+    ds.Value = lambda *a, **k: None
     monkeypatch.setitem(sys.modules, 'datasets', ds)
 
     import training
@@ -69,3 +74,21 @@ def test_resolve_device(monkeypatch, training_module):
     assert training_module._resolve_device('auto', True) == 'cpu'
     assert training_module._resolve_device('auto', False) == 'cpu'
     assert training_module._resolve_device('cpu', True) == 'cpu'
+
+
+def test_env_restored_on_exception_train_model(monkeypatch, training_module):
+    monkeypatch.setenv('TRANSFORMERS_NO_CUDA', 'orig')
+    monkeypatch.setattr(training_module, '_fetch_texts', lambda *a, **k: (_ for _ in ()).throw(RuntimeError('fail')))
+
+    training_module.train_model(1, 'cpu')
+
+    assert os.environ.get('TRANSFORMERS_NO_CUDA') == 'orig'
+
+
+def test_env_restored_on_exception_train_qa_model(monkeypatch, training_module):
+    monkeypatch.setenv('TRANSFORMERS_NO_CUDA', 'orig')
+    monkeypatch.setattr(training_module, '_fetch_qa_pairs', lambda *a, **k: (_ for _ in ()).throw(RuntimeError('fail')))
+
+    training_module.train_qa_model(1, 'cpu')
+
+    assert os.environ.get('TRANSFORMERS_NO_CUDA') == 'orig'
