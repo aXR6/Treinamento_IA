@@ -4,10 +4,18 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Carrega variáveis de ambiente buscando .env na pasta do projeto.
-# `override=True` garante que valores do arquivo substituam variáveis já
-# definidas no ambiente do sistema.
-load_dotenv(Path(__file__).resolve().with_name('.env'), override=True)
+# Carrega variáveis de ambiente. Procura primeiro por `.env` e,
+# caso não exista, usa `exemplo.env` como fallback. `override=True`
+# garante que valores do arquivo substituam variáveis já definidas no
+# ambiente do sistema.
+_env_path = Path(__file__).resolve().with_name('.env')
+if _env_path.exists():
+    load_dotenv(_env_path, override=True)
+else:
+    _example = _env_path.with_name('exemplo.env')
+    if _example.exists():
+        logging.warning("Arquivo .env não encontrado; carregando exemplo.env")
+        load_dotenv(_example, override=True)
 
 # Valor padrao seguro para o comprimento maximo de sequencias
 DEFAULT_MAX_SEQ_LENGTH = 128
@@ -20,7 +28,8 @@ PG_HOST     = os.getenv("PG_HOST")
 PG_PORT     = int(os.getenv("PG_PORT", "5432"))
 PG_USER     = os.getenv("PG_USER")
 PG_PASSWORD = os.getenv("PG_PASSWORD")
-PG_DATABASE = os.getenv("PG_DATABASE")
+# Usa 'vector_store' caso a variável não seja definida no ambiente
+PG_DATABASE = os.getenv("PG_DATABASE", "vector_store")
 PG_DB_PDF   = os.getenv("PG_DB_PDF", "vector_store_pdf")
 PG_DB_QA    = os.getenv("PG_DB_QA", "vector_store_pdf_qs")
 
