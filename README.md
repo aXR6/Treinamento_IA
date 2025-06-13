@@ -62,9 +62,8 @@ O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
 
 Defina `QG_MODEL` como
 `Narrativa/mT5-base-finetuned-tydiQA-question-generation` e `QA_MODEL` como
-`Narrativa/mT5-base-finetuned-tydiQA-xqa`. A cobertura inclui 11 idiomas
-(Arabic, Bengali, English, Finnish, Indonesian, Japanese, Korean, Russian,
-Swahili, Telugu e Thai), portanto não há suporte para português.
+`Narrativa/mT5-base-finetuned-tydiQA-xqa`. A cobertura inclui os idiomas:
+(Afrikaans, Albanian, Amharic, Arabic, Armenian, Azerbaijani, Basque, Belarusian, Bengali, Bulgarian, Burmese, Catalan, Cebuano, Chichewa, Chinese, Corsican, Czech, Danish, Dutch, English, Esperanto, Estonian, Filipino, Finnish, French, Galician, Georgian, German, Greek, Gujarati, Haitian Creole, Hausa, Hawaiian, Hebrew, Hindi, Hmong, Hungarian, Icelandic, Igbo, Indonesian, Irish, Italian, Japanese, Javanese, Kannada, Kazakh, Khmer, Korean, Kurdish, Kyrgyz, Lao, Latin, Latvian, Lithuanian, Luxembourgish, Macedonian, Malagasy, Malay, Malayalam, Maltese, Maori, Marathi, Mongolian, Nepali, Norwegian, Pashto, Persian, Polish, Portuguese, Punjabi, Romanian, Russian, Samoan, Scottish Gaelic, Serbian, Shona, Sindhi, Sinhala, Slovak, Slovenian, Somali, Sotho, Spanish, Sundanese, Swahili, Swedish, Tajik, Tamil, Telugu, Thai, Turkish, Ukrainian, Urdu, Uzbek, Vietnamese, Welsh, West Frisian, Xhosa, Yiddish, Yoruba, Zulu.), incluindo há suporte para português.
 
 ```python
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
