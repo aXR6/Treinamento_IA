@@ -207,24 +207,22 @@ def hierarchical_chunk_generator(text: str, metadata: dict,
             current_para_group.append(para)
             current_tok_count += tok_len
         else:
-            # Fecha chunk atual
-            yield "\n\n".join(current_para_group)
-            # Inicia novo grupo com overlap opcional
             if overlap_tokens > 0:
                 from langchain.text_splitter import TokenTextSplitter
                 splitter = TokenTextSplitter(
                     chunk_size=max_tokens,
                     chunk_overlap=overlap_tokens,
                 )
-                combined = current_para_group and ("\n\n".join(current_para_group)) or ""
-                combined = combined + "\n\n" + para
+                combined = "\n\n".join(current_para_group) + "\n\n" + para
                 new_chunks = splitter.split_text(combined)
-                current_para_group = [new_chunks[-1]]
-                current_tok_count = len(tokenizer.tokenize(new_chunks[-1]))
                 yield new_chunks[0]
                 for sc in new_chunks[1:-1]:
                     yield sc
+                current_para_group = [new_chunks[-1]]
+                current_tok_count = len(tokenizer.tokenize(new_chunks[-1]))
             else:
+                # Fecha chunk atual
+                yield "\n\n".join(current_para_group)
                 current_para_group = [para]
                 current_tok_count = tok_len
 
