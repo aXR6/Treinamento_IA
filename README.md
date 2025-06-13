@@ -53,6 +53,8 @@ O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
   **Recomenda-se que `CHUNK_SIZE` seja de no máximo 512 ao gerar perguntas e respostas.**
   A função `generate_qa` limita automaticamente `doc_stride` para nunca exceder o
   tamanho máximo suportado pelo tokenizer.
+  Use `QA_EXPLICIT_PROMPT` para gerar respostas com `model.generate` a partir de
+  um prompt "question: ... context: ...".
 - **Outros**: `CSV_FULL` e `CSV_INCR` podem apontar para arquivos CSV locais de
   vulnerabilidades (opcional).
 
@@ -89,6 +91,8 @@ EVAL_STEPS=500
 VALIDATION_SPLIT=0.1
 QG_MODEL=valhalla/t5-base-qa-qg-hl
 QA_MODEL=${QG_MODEL}
+# Ativa prompt explicito no QA (opcional)
+# QA_EXPLICIT_PROMPT=1
 # QG_MODEL=Narrativa/mT5-base-finetuned-tydiQA-question-generation
 # QA_MODEL=Narrativa/mT5-base-finetuned-tydiQA-xqa
 ```
