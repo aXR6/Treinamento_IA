@@ -56,8 +56,8 @@ def _fetch_texts(dim: int, db_name: str, batch_size: int = 1000) -> Iterator[str
         if conn:
             conn.close()
 
-def _fetch_qa_pairs(dim: int, db_name: str, batch_size: int = 1000) -> Iterator[tuple[str, str]]:
-    """Lê colunas `question` e `answer` de public.documents_<dim>."""
+def _fetch_qa_pairs(dim: int, db_name: str, batch_size: int = 1000) -> Iterator[tuple[str, str, str]]:
+    """Lê colunas `content`, `question` e `answer` de public.documents_<dim>."""
     table = f"public.documents_{dim}"
     conn = None
     try:
@@ -71,7 +71,7 @@ def _fetch_qa_pairs(dim: int, db_name: str, batch_size: int = 1000) -> Iterator[
         with conn.cursor(name=f"cursor_qa_{dim}") as cur:
             cur.itersize = batch_size
             cur.execute(
-                f"SELECT question, answer FROM {table} "
+                f"SELECT content, question, answer FROM {table} "
                 "WHERE question IS NOT NULL AND answer IS NOT NULL "
                 "AND question <> '' AND answer <> ''"
             )
@@ -79,8 +79,8 @@ def _fetch_qa_pairs(dim: int, db_name: str, batch_size: int = 1000) -> Iterator[
                 rows = cur.fetchmany(batch_size)
                 if not rows:
                     break
-                for q, a in rows:
-                    yield q, a
+                for content, q, a in rows:
+                    yield content, q, a
     except Exception as e:
         logging.error(f"Erro ao ler dados de {table}: {e}")
     finally:
@@ -283,8 +283,8 @@ def train_qa_model(
     """Ajusta modelo usando pares pergunta/resposta do PostgreSQL."""
 
     def text_generator() -> Iterator[dict]:
-        for q, a in _fetch_qa_pairs(dim, PG_DB_QA):
-            yield {"text": f"Pergunta: {q}\nResposta: {a}"}
+        for content, q, a in _fetch_qa_pairs(dim, PG_DB_QA):
+            yield {"text": f"Pergunta: {q}\nContexto: {content}\nResposta: {a}"}
 
     use_cuda = _should_use_cuda(device, allow_auto_gpu)
     prev_env = os.environ.get("TRANSFORMERS_NO_CUDA")
