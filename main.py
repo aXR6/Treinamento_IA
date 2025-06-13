@@ -89,6 +89,47 @@ def test_model(path: str, device: str) -> None:
             out_ids = model.generate(**data, max_new_tokens=128)
         print(tok.decode(out_ids[0], skip_special_tokens=True))
 
+
+def chat_model(path: str, device: str) -> None:
+    """Inicia uma conversa mantendo o hist\u00f3rico de mensagens."""
+    try:
+        from transformers import AutoTokenizer, AutoModelForCausalLM
+    except Exception as e:
+        logging.error(f"Falha ao importar transformers: {e}")
+        print("Depend\u00eancia 'transformers' ausente")
+        return
+
+    dev = _resolve_dev(device)
+    try:
+        tok = AutoTokenizer.from_pretrained(path)
+        model = AutoModelForCausalLM.from_pretrained(path).to(dev)
+    except Exception as e:
+        logging.error(f"Falha ao carregar modelo: {e}")
+        print("N\u00e3o foi poss\u00edvel carregar o modelo informado")
+        return
+
+    history = ""
+    while True:
+        prompt = input("Voc\u00ea: ").strip()
+        if not prompt:
+            break
+        history += f"Usu\u00e1rio: {prompt}\nAssistente:"
+        data = tok(history, return_tensors="pt")
+        data = {k: v.to(model.device) for k, v in data.items()}
+        with torch.no_grad():
+            out_ids = model.generate(**data, max_new_tokens=128)
+        if hasattr(data["input_ids"], "shape"):
+            in_len = data["input_ids"].shape[1]
+        elif isinstance(data["input_ids"], (list, tuple)):
+            elem = data["input_ids"][0]
+            in_len = len(elem) if isinstance(elem, (list, tuple)) else len(data["input_ids"])
+        else:
+            in_len = 0
+        new_tokens = out_ids[0][in_len:]
+        response = tok.decode(new_tokens, skip_special_tokens=True)
+        history += f" {response}\n"
+        print(response)
+
 def model_test_menu(current_path: str, device: str) -> tuple[str, str]:
     while True:
         clear_screen()
@@ -97,6 +138,7 @@ def model_test_menu(current_path: str, device: str) -> tuple[str, str]:
         print(f"1 - Caminho do modelo (atual: {show})")
         print(f"2 - Dispositivo (atual: {device})")
         print("3 - Iniciar teste")
+        print("4 - Conversar com modelo")
         print("0 - Voltar")
         c = input("> ").strip()
 
@@ -114,6 +156,13 @@ def model_test_menu(current_path: str, device: str) -> tuple[str, str]:
                 input("ENTER para continuar…")
                 continue
             test_model(current_path, device)
+            input("ENTER para continuar…")
+        elif c == "4":
+            if not current_path:
+                print("Caminho não definido.")
+                input("ENTER para continuar…")
+                continue
+            chat_model(current_path, device)
             input("ENTER para continuar…")
         else:
             print("Opção inválida.")
