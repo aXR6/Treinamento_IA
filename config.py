@@ -20,7 +20,6 @@ PG_HOST     = os.getenv("PG_HOST")
 PG_PORT     = int(os.getenv("PG_PORT", "5432"))
 PG_USER     = os.getenv("PG_USER")
 PG_PASSWORD = os.getenv("PG_PASSWORD")
-PG_DATABASE = os.getenv("PG_DATABASE")
 PG_DB_PDF   = os.getenv("PG_DB_PDF")
 PG_DB_QA    = os.getenv("PG_DB_QA")
 
@@ -84,7 +83,7 @@ VALIDATION_SPLIT = float(os.getenv("VALIDATION_SPLIT", "0.1"))
 
 def validate_config():
     missing = []
-    for var in ("PG_HOST", "PG_PORT", "PG_USER", "PG_PASSWORD", "PG_DATABASE"):
+    for var in ("PG_HOST", "PG_PORT", "PG_USER", "PG_PASSWORD", "PG_DB_PDF", "PG_DB_QA"):
         if not globals().get(var):
             missing.append(var)
     if missing:

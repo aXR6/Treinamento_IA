@@ -63,7 +63,6 @@ PG_HOST=192.168.3.32
 PG_PORT=5432
 PG_USER=vector_store
 PG_PASSWORD=senha
-PG_DATABASE=vector_store
 PG_DB_PDF=vector_store_pdf
 PG_DB_QA=vector_store_pdf_qs
 

@@ -23,7 +23,6 @@ from config import (
     PG_PORT,
     PG_USER,
     PG_PASSWORD,
-    PG_DATABASE,
     PG_DB_PDF,
     PG_DB_QA,
     TRAINING_MODEL_NAME,

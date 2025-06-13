@@ -35,7 +35,7 @@ from config import (
     PG_PORT,
     PG_USER,
     PG_PASSWORD,
-    PG_DATABASE,
+    PG_DB_PDF,
     QG_MODEL,
     QA_MODEL,
     MAX_SEQ_LENGTH,
@@ -270,7 +270,7 @@ def save_to_postgres(filename: str,
         conn = psycopg2.connect(
             host=PG_HOST,
             port=PG_PORT,
-            dbname=PG_DATABASE,
+            dbname=PG_DB_PDF,
             user=PG_USER,
             password=PG_PASSWORD
         )
