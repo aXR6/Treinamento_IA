@@ -164,109 +164,109 @@ def train_model(
         if prev_env is not None:
             os.environ.pop("TRANSFORMERS_NO_CUDA", None)
 
-    base_model = model_name or TRAINING_MODEL_NAME
-    logging.info(f"Carregando modelo '{base_model}'…")
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
-    model = AutoModelForCausalLM.from_pretrained(base_model)
-
-    features = Features({"text": Value("string")})
     try:
-        dataset = Dataset.from_generator(text_generator, features=features)
-    except Exception:
-        logging.error("Nenhum texto encontrado para treinamento.")
-        return
-    dataset_len = len(dataset)
-    logging.info(f"Total de textos carregados: {dataset_len}")
+        base_model = model_name or TRAINING_MODEL_NAME
+        logging.info(f"Carregando modelo '{base_model}'…")
+        tokenizer = AutoTokenizer.from_pretrained(base_model)
+        model = AutoModelForCausalLM.from_pretrained(base_model)
 
-    def tokenize_fn(examples):
-        max_len = max_seq_length or tokenizer.model_max_length
-        return tokenizer(examples["text"], truncation=True, max_length=max_len)
-
-    tokenized = dataset.map(tokenize_fn, batched=True, remove_columns=["text"])
-    split = tokenized.train_test_split(test_size=validation_split, seed=42)
-    train_ds = split["train"]
-    eval_ds = split["test"]
-    collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-
-    resolved_device = _resolve_device(device, allow_auto_gpu)
-    logging.info(f"Dispositivo escolhido: {resolved_device}")
-
-    out_dir = f"{base_model.replace('/', '_')}_finetuned_{dim}"
-    base_args = {
-        "output_dir": out_dir,
-        "num_train_epochs": epochs,
-        "per_device_train_batch_size": batch_size,
-        "overwrite_output_dir": True,
-        "use_cpu": resolved_device == "cpu",
-    }
-
-    sig = inspect.signature(TrainingArguments)
-    if "evaluation_strategy" in sig.parameters:
-        base_args.update({
-            "per_device_eval_batch_size": batch_size,
-            "logging_steps": 10,
-            "evaluation_strategy": "steps",
-            "eval_steps": eval_steps,
-            "save_strategy": "steps",
-            "save_steps": eval_steps,
-            "load_best_model_at_end": True,
-            "metric_for_best_model": "loss",
-            "greater_is_better": False,
-        })
-    else:
-        base_args["logging_steps"] = 10
-
-    training_args = TrainingArguments(**base_args)
-
-    try:
-        model = model.to(resolved_device)
-    except RuntimeError as e:
-        if "out of memory" in str(e).lower():
-            logging.error(f"Memória insuficiente para mover modelo: {e}")
-            print(
-                "\n⚠️  Não há memória de vídeo suficiente. "
-                "Reduza o batch size ou selecione 'cpu' como dispositivo."
-            )
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+        features = Features({"text": Value("string")})
+        try:
+            dataset = Dataset.from_generator(text_generator, features=features)
+        except Exception:
+            logging.error("Nenhum texto encontrado para treinamento.")
             return
-        raise
+        dataset_len = len(dataset)
+        logging.info(f"Total de textos carregados: {dataset_len}")
 
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_ds,
-        eval_dataset=eval_ds,
-        data_collator=collator,
-        callbacks=[ProgressCallback()],
-    )
+        def tokenize_fn(examples):
+            max_len = max_seq_length or tokenizer.model_max_length
+            return tokenizer(examples["text"], truncation=True, max_length=max_len)
 
-    logging.info("Iniciando treinamento…")
-    try:
-        trainer.train()
-        trainer.save_model(training_args.output_dir)
-        best_dir = os.path.join(training_args.output_dir, "best_model")
-        trainer.save_model(best_dir)
-        logging.info(
-            f"Modelo salvo em {training_args.output_dir} (melhor em {best_dir})"
+        tokenized = dataset.map(tokenize_fn, batched=True, remove_columns=["text"])
+        split = tokenized.train_test_split(test_size=validation_split, seed=42)
+        train_ds = split["train"]
+        eval_ds = split["test"]
+        collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+
+        resolved_device = _resolve_device(device, allow_auto_gpu)
+        logging.info(f"Dispositivo escolhido: {resolved_device}")
+
+        out_dir = f"{base_model.replace('/', '_')}_finetuned_{dim}"
+        base_args = {
+            "output_dir": out_dir,
+            "num_train_epochs": epochs,
+            "per_device_train_batch_size": batch_size,
+            "overwrite_output_dir": True,
+            "use_cpu": resolved_device == "cpu",
+        }
+
+        sig = inspect.signature(TrainingArguments)
+        if "evaluation_strategy" in sig.parameters:
+            base_args.update({
+                "per_device_eval_batch_size": batch_size,
+                "logging_steps": 10,
+                "evaluation_strategy": "steps",
+                "eval_steps": eval_steps,
+                "save_strategy": "steps",
+                "save_steps": eval_steps,
+                "load_best_model_at_end": True,
+                "metric_for_best_model": "loss",
+                "greater_is_better": False,
+            })
+        else:
+            base_args["logging_steps"] = 10
+
+        training_args = TrainingArguments(**base_args)
+
+        try:
+            model = model.to(resolved_device)
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                logging.error(f"Memória insuficiente para mover modelo: {e}")
+                print(
+                    "\n⚠️  Não há memória de vídeo suficiente. "
+                    "Reduza o batch size ou selecione 'cpu' como dispositivo."
+                )
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                return
+            raise
+
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_ds,
+            eval_dataset=eval_ds,
+            data_collator=collator,
+            callbacks=[ProgressCallback()],
         )
-    except RuntimeError as e:
-        if "out of memory" in str(e).lower():
-            logging.error(f"Memória insuficiente durante o treinamento: {e}")
-            print(
-                "\n⚠️  A GPU ficou sem memória durante o treinamento. "
-                "Tente reduzir o batch size ou utilize a CPU."
-            )
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            return
-        raise
 
-    # Restaura variável de ambiente original
-    if prev_env is not None:
-        os.environ["TRANSFORMERS_NO_CUDA"] = prev_env
-    else:
-        os.environ.pop("TRANSFORMERS_NO_CUDA", None)
+        logging.info("Iniciando treinamento…")
+        try:
+            trainer.train()
+            trainer.save_model(training_args.output_dir)
+            best_dir = os.path.join(training_args.output_dir, "best_model")
+            trainer.save_model(best_dir)
+            logging.info(
+                f"Modelo salvo em {training_args.output_dir} (melhor em {best_dir})"
+            )
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                logging.error(f"Memória insuficiente durante o treinamento: {e}")
+                print(
+                    "\n⚠️  A GPU ficou sem memória durante o treinamento. "
+                    "Tente reduzir o batch size ou utilize a CPU."
+                )
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                return
+            raise
+    finally:
+        if prev_env is not None:
+            os.environ["TRANSFORMERS_NO_CUDA"] = prev_env
+        else:
+            os.environ.pop("TRANSFORMERS_NO_CUDA", None)
 
 
 def train_qa_model(
@@ -294,106 +294,107 @@ def train_qa_model(
         if prev_env is not None:
             os.environ.pop("TRANSFORMERS_NO_CUDA", None)
 
-    base_model = model_name or TRAINING_MODEL_NAME
-    logging.info(f"Carregando modelo '{base_model}'…")
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
-    model = AutoModelForCausalLM.from_pretrained(base_model)
-
-    features = Features({"text": Value("string")})
     try:
-        dataset = Dataset.from_generator(text_generator, features=features)
-    except Exception:
-        logging.error("Nenhum par QA encontrado para treinamento.")
-        return
+        base_model = model_name or TRAINING_MODEL_NAME
+        logging.info(f"Carregando modelo '{base_model}'…")
+        tokenizer = AutoTokenizer.from_pretrained(base_model)
+        model = AutoModelForCausalLM.from_pretrained(base_model)
 
-    dataset_len = len(dataset)
-    logging.info(f"Total de pares carregados: {dataset_len}")
-
-    def tokenize_fn(examples):
-        max_len = max_seq_length or tokenizer.model_max_length
-        return tokenizer(examples["text"], truncation=True, max_length=max_len)
-
-    tokenized = dataset.map(tokenize_fn, batched=True, remove_columns=["text"])
-    split = tokenized.train_test_split(test_size=validation_split, seed=42)
-    train_ds = split["train"]
-    eval_ds = split["test"]
-    collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-
-    resolved_device = _resolve_device(device, allow_auto_gpu)
-    logging.info(f"Dispositivo escolhido: {resolved_device}")
-
-    out_dir = f"{base_model.replace('/', '_')}_finetuned_qa_{dim}"
-    base_args = {
-        "output_dir": out_dir,
-        "num_train_epochs": epochs,
-        "per_device_train_batch_size": batch_size,
-        "overwrite_output_dir": True,
-        "use_cpu": resolved_device == "cpu",
-    }
-
-    sig = inspect.signature(TrainingArguments)
-    if "evaluation_strategy" in sig.parameters:
-        base_args.update({
-            "per_device_eval_batch_size": batch_size,
-            "logging_steps": 10,
-            "evaluation_strategy": "steps",
-            "eval_steps": eval_steps,
-            "save_strategy": "steps",
-            "save_steps": eval_steps,
-            "load_best_model_at_end": True,
-            "metric_for_best_model": "loss",
-            "greater_is_better": False,
-        })
-    else:
-        base_args["logging_steps"] = 10
-
-    training_args = TrainingArguments(**base_args)
-
-    try:
-        model = model.to(resolved_device)
-    except RuntimeError as e:
-        if "out of memory" in str(e).lower():
-            logging.error(f"Memória insuficiente para mover modelo: {e}")
-            print(
-                "\n⚠️  Não há memória de vídeo suficiente. "
-                "Reduza o batch size ou selecione 'cpu' como dispositivo."
-            )
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+        features = Features({"text": Value("string")})
+        try:
+            dataset = Dataset.from_generator(text_generator, features=features)
+        except Exception:
+            logging.error("Nenhum par QA encontrado para treinamento.")
             return
-        raise
 
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_ds,
-        eval_dataset=eval_ds,
-        data_collator=collator,
-        callbacks=[ProgressCallback()],
-    )
+        dataset_len = len(dataset)
+        logging.info(f"Total de pares carregados: {dataset_len}")
 
-    logging.info("Iniciando treinamento…")
-    try:
-        trainer.train()
-        trainer.save_model(training_args.output_dir)
-        best_dir = os.path.join(training_args.output_dir, "best_model")
-        trainer.save_model(best_dir)
-        logging.info(
-            f"Modelo salvo em {training_args.output_dir} (melhor em {best_dir})"
+        def tokenize_fn(examples):
+            max_len = max_seq_length or tokenizer.model_max_length
+            return tokenizer(examples["text"], truncation=True, max_length=max_len)
+
+        tokenized = dataset.map(tokenize_fn, batched=True, remove_columns=["text"])
+        split = tokenized.train_test_split(test_size=validation_split, seed=42)
+        train_ds = split["train"]
+        eval_ds = split["test"]
+        collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+
+        resolved_device = _resolve_device(device, allow_auto_gpu)
+        logging.info(f"Dispositivo escolhido: {resolved_device}")
+
+        out_dir = f"{base_model.replace('/', '_')}_finetuned_qa_{dim}"
+        base_args = {
+            "output_dir": out_dir,
+            "num_train_epochs": epochs,
+            "per_device_train_batch_size": batch_size,
+            "overwrite_output_dir": True,
+            "use_cpu": resolved_device == "cpu",
+        }
+
+        sig = inspect.signature(TrainingArguments)
+        if "evaluation_strategy" in sig.parameters:
+            base_args.update({
+                "per_device_eval_batch_size": batch_size,
+                "logging_steps": 10,
+                "evaluation_strategy": "steps",
+                "eval_steps": eval_steps,
+                "save_strategy": "steps",
+                "save_steps": eval_steps,
+                "load_best_model_at_end": True,
+                "metric_for_best_model": "loss",
+                "greater_is_better": False,
+            })
+        else:
+            base_args["logging_steps"] = 10
+
+        training_args = TrainingArguments(**base_args)
+
+        try:
+            model = model.to(resolved_device)
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                logging.error(f"Memória insuficiente para mover modelo: {e}")
+                print(
+                    "\n⚠️  Não há memória de vídeo suficiente. "
+                    "Reduza o batch size ou selecione 'cpu' como dispositivo."
+                )
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                return
+            raise
+
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_ds,
+            eval_dataset=eval_ds,
+            data_collator=collator,
+            callbacks=[ProgressCallback()],
         )
-    except RuntimeError as e:
-        if "out of memory" in str(e).lower():
-            logging.error(f"Memória insuficiente durante o treinamento: {e}")
-            print(
-                "\n⚠️  A GPU ficou sem memória durante o treinamento. "
-                "Tente reduzir o batch size ou utilize a CPU."
-            )
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            return
-        raise
 
-    if prev_env is not None:
-        os.environ["TRANSFORMERS_NO_CUDA"] = prev_env
-    else:
-        os.environ.pop("TRANSFORMERS_NO_CUDA", None)
+        logging.info("Iniciando treinamento…")
+        try:
+            trainer.train()
+            trainer.save_model(training_args.output_dir)
+            best_dir = os.path.join(training_args.output_dir, "best_model")
+            trainer.save_model(best_dir)
+            logging.info(
+                f"Modelo salvo em {training_args.output_dir} (melhor em {best_dir})"
+            )
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                logging.error(f"Memória insuficiente durante o treinamento: {e}")
+                print(
+                    "\n⚠️  A GPU ficou sem memória durante o treinamento. "
+                    "Tente reduzir o batch size ou utilize a CPU."
+                )
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                return
+            raise
+    finally:
+        if prev_env is not None:
+            os.environ["TRANSFORMERS_NO_CUDA"] = prev_env
+        else:
+            os.environ.pop("TRANSFORMERS_NO_CUDA", None)
