@@ -4,9 +4,9 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Carrega variáveis de ambiente buscando .env na pasta do projeto.
-# `override=True` garante que valores do arquivo substituam variáveis já
-# definidas no ambiente do sistema.
+# Carrega variáveis de ambiente exclusivamente do arquivo `.env` na raiz do
+# projeto. `override=True` garante que valores definidos nesse arquivo
+# substituam variáveis já presentes no ambiente.
 load_dotenv(Path(__file__).resolve().with_name('.env'), override=True)
 
 # Valor padrao seguro para o comprimento maximo de sequencias
@@ -21,8 +21,8 @@ PG_PORT     = int(os.getenv("PG_PORT", "5432"))
 PG_USER     = os.getenv("PG_USER")
 PG_PASSWORD = os.getenv("PG_PASSWORD")
 PG_DATABASE = os.getenv("PG_DATABASE")
-PG_DB_PDF   = os.getenv("PG_DB_PDF", "vector_store_pdf")
-PG_DB_QA    = os.getenv("PG_DB_QA", "vector_store_pdf_qs")
+PG_DB_PDF   = os.getenv("PG_DB_PDF")
+PG_DB_QA    = os.getenv("PG_DB_QA")
 
 # — CSV locais (NVD)
 CSV_FULL = os.getenv("CSV_FULL")
