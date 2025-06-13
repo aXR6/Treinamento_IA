@@ -50,6 +50,8 @@ _CE_CACHE: dict = {}
 _QG_PIPELINE = None
 _QA_PIPELINE = None
 _T2T_PIPELINE = None
+_QA_MODEL = None
+_QA_TOKENIZER = None
 
 def get_cross_encoder(model_name: str, device: str) -> CrossEncoder:
     """Retorna CrossEncoder em cache para o dispositivo escolhido."""
@@ -111,7 +113,7 @@ def generate_qa(text: str) -> tuple[str, str]:
     caracteres úteis. Caso a pipeline produza pergunta ou resposta vazia,
     o aviso de log inclui o output cru para facilitar a depuração.
     """
-    global _QG_PIPELINE, _QA_PIPELINE, _T2T_PIPELINE
+    global _QG_PIPELINE, _QA_PIPELINE, _T2T_PIPELINE, _QA_MODEL, _QA_TOKENIZER
 
     if len(text.strip()) < 50:
         logging.info("Texto muito curto para gerar QA; pulando")
@@ -131,7 +133,29 @@ def generate_qa(text: str) -> tuple[str, str]:
             )
             return "", ""
 
-    if _QA_PIPELINE is None:
+    if QA_EXPLICIT_PROMPT:
+        if _QA_MODEL is None or _QA_TOKENIZER is None:
+            try:
+                from transformers import (
+                    AutoTokenizer,
+                    AutoModelForSeq2SeqLM,
+                    AutoModelForCausalLM,
+                )
+                _QA_TOKENIZER = AutoTokenizer.from_pretrained(QA_MODEL)
+                try:
+                    _QA_MODEL = AutoModelForSeq2SeqLM.from_pretrained(QA_MODEL)
+                except Exception:
+                    _QA_MODEL = AutoModelForCausalLM.from_pretrained(QA_MODEL)
+                if torch.cuda.is_available():
+                    _QA_MODEL = _QA_MODEL.to("cuda")
+                logging.info(f"QA model loaded with {QA_MODEL}")
+            except Exception as e:
+                logging.error(
+                    f"Falha ao carregar modelo de QA ({QA_MODEL}) para prompt explicito: {e}"
+                )
+                _QA_MODEL = None
+                _QA_TOKENIZER = None
+    elif _QA_PIPELINE is None:
         try:
             _QA_PIPELINE = hf_pipeline("question-answering", model=QA_MODEL)
             logging.info(f"QA pipeline loaded with {QA_MODEL}")
@@ -187,62 +211,65 @@ def generate_qa(text: str) -> tuple[str, str]:
         answer = ""
         qa_res = None
         if question:
-            try:
-                tok_len = len(_QA_PIPELINE.tokenizer.tokenize(text))
-            except Exception:
-                tok_len = 0
-
-            try:
-                q_len = len(_QA_PIPELINE.tokenizer.tokenize(question))
-            except Exception:
-                q_len = 0
-
-            try:
-                model_max_len = int(_QA_PIPELINE.tokenizer.model_max_length)
-            except Exception:
-                model_max_len = MAX_SEQ_LENGTH
-
-            max_seq = min(MAX_SEQ_LENGTH or model_max_len, model_max_len)
-
-            try:
-                specials = _QA_PIPELINE.tokenizer.num_special_tokens_to_add(pair=True)
-            except Exception:
-                specials = 0
-
-            max_len = max_seq - specials
-
-            doc_stride = max(1, min(64, tok_len - 1))
-            available = max_len - q_len
-            if available > 1:
-                doc_stride = min(doc_stride, available - 1)
-            else:
-                doc_stride = 1
-
-            logging.debug(f"QA doc_stride={doc_stride} max_len={max_len}")
-
-            kwargs = {"doc_stride": doc_stride, "max_seq_len": max_seq}
-            if QA_EXPLICIT_PROMPT and hasattr(_QA_PIPELINE.model, "generate"):
+            use_pipeline = True
+            if QA_EXPLICIT_PROMPT and _QA_MODEL is not None and _QA_TOKENIZER is not None:
                 try:
                     input_text = f"question: {question}  context: {text}"
-                    tok = _QA_PIPELINE.tokenizer
-                    model = _QA_PIPELINE.model
-                    data = tok(input_text, return_tensors="pt")
-                    data = {k: v.to(model.device) for k, v in data.items()}
-                    out_ids = model.generate(**data)
-                    answer = tok.decode(out_ids[0], skip_special_tokens=True).strip()
+                    data = _QA_TOKENIZER(input_text, return_tensors="pt")
+                    data = {k: v.to(_QA_MODEL.device) for k, v in data.items()}
+                    out_ids = _QA_MODEL.generate(**data)
+                    answer = _QA_TOKENIZER.decode(out_ids[0], skip_special_tokens=True).strip()
                     qa_res = {"answer": answer}
+                    use_pipeline = False
                 except Exception as e:
                     logging.error(
-                        f"QA explicito falhou: {e}; usando pipeline padrao"
+                        f"QA explicito falhou: {e}; tentando pipeline padrao"
                     )
-                    qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
-                    if isinstance(qa_res, dict):
-                        answer = qa_res.get("answer", "")
-            else:
-                if QA_EXPLICIT_PROMPT and not hasattr(_QA_PIPELINE.model, "generate"):
-                    logging.error(
-                        "QA_EXPLICIT_PROMPT ativado, mas o modelo nao possui metodo generate; usando pipeline padrao"
-                    )
+            if use_pipeline:
+                if _QA_PIPELINE is None:
+                    try:
+                        _QA_PIPELINE = hf_pipeline("question-answering", model=QA_MODEL)
+                        logging.info(f"QA pipeline loaded with {QA_MODEL}")
+                    except Exception as e:
+                        logging.error(
+                            f"Falha ao carregar pipeline de question answering ({QA_MODEL}): {e}"
+                        )
+                        return question, ""
+
+                try:
+                    tok_len = len(_QA_PIPELINE.tokenizer.tokenize(text))
+                except Exception:
+                    tok_len = 0
+
+                try:
+                    q_len = len(_QA_PIPELINE.tokenizer.tokenize(question))
+                except Exception:
+                    q_len = 0
+
+                try:
+                    model_max_len = int(_QA_PIPELINE.tokenizer.model_max_length)
+                except Exception:
+                    model_max_len = MAX_SEQ_LENGTH
+
+                max_seq = min(MAX_SEQ_LENGTH or model_max_len, model_max_len)
+
+                try:
+                    specials = _QA_PIPELINE.tokenizer.num_special_tokens_to_add(pair=True)
+                except Exception:
+                    specials = 0
+
+                max_len = max_seq - specials
+
+                doc_stride = max(1, min(64, tok_len - 1))
+                available = max_len - q_len
+                if available > 1:
+                    doc_stride = min(doc_stride, available - 1)
+                else:
+                    doc_stride = 1
+
+                logging.debug(f"QA doc_stride={doc_stride} max_len={max_len}")
+
+                kwargs = {"doc_stride": doc_stride, "max_seq_len": max_seq}
                 qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
                 if isinstance(qa_res, dict):
                     answer = qa_res.get("answer", "")
