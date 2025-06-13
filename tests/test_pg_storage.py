@@ -144,3 +144,31 @@ def test_generate_qa_limits_doc_stride(pg, monkeypatch):
     assert kwargs["doc_stride"] < available
     assert kwargs["max_seq_len"] <= qa.tokenizer.model_max_length
 
+
+def test_generate_qa_explicit_prompt_fallback(pg, monkeypatch):
+    class DummyQA:
+        def __init__(self):
+            self.calls = []
+            self.tokenizer = types.SimpleNamespace(
+                model_max_length=16,
+                tokenize=lambda text: text.split(),
+                num_special_tokens_to_add=lambda pair=True: 2,
+            )
+            self.model = types.SimpleNamespace()  # sem metodo generate
+
+        def __call__(self, question, context, **kwargs):
+            self.calls.append(kwargs)
+            return {"answer": "A"}
+
+    qa = DummyQA()
+    monkeypatch.setattr(pg, "_QG_AVAILABLE", True)
+    monkeypatch.setattr(pg, "_QG_PIPELINE", lambda text: ["Q"])
+    monkeypatch.setattr(pg, "_QA_PIPELINE", qa)
+    monkeypatch.setattr(pg, "MAX_SEQ_LENGTH", 32)
+    monkeypatch.setattr(pg, "QA_EXPLICIT_PROMPT", True)
+
+    q, a = pg.generate_qa("word " * 40)
+    assert q == "Q"
+    assert a == "A"
+    assert len(qa.calls) == 1
+

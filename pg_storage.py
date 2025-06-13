@@ -221,7 +221,7 @@ def generate_qa(text: str) -> tuple[str, str]:
             logging.debug(f"QA doc_stride={doc_stride} max_len={max_len}")
 
             kwargs = {"doc_stride": doc_stride, "max_seq_len": max_seq}
-            if QA_EXPLICIT_PROMPT:
+            if QA_EXPLICIT_PROMPT and hasattr(_QA_PIPELINE.model, "generate"):
                 try:
                     input_text = f"question: {question}  context: {text}"
                     tok = _QA_PIPELINE.tokenizer
@@ -232,11 +232,17 @@ def generate_qa(text: str) -> tuple[str, str]:
                     answer = tok.decode(out_ids[0], skip_special_tokens=True).strip()
                     qa_res = {"answer": answer}
                 except Exception as e:
-                    logging.error(f"QA explicito falhou: {e}; usando pipeline padrao")
+                    logging.error(
+                        f"QA explicito falhou: {e}; usando pipeline padrao"
+                    )
                     qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
                     if isinstance(qa_res, dict):
                         answer = qa_res.get("answer", "")
             else:
+                if QA_EXPLICIT_PROMPT and not hasattr(_QA_PIPELINE.model, "generate"):
+                    logging.error(
+                        "QA_EXPLICIT_PROMPT ativado, mas o modelo nao possui metodo generate; usando pipeline padrao"
+                    )
                 qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
                 if isinstance(qa_res, dict):
                     answer = qa_res.get("answer", "")

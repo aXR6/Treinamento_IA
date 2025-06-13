@@ -52,9 +52,11 @@ O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
   `pierreguillou/t5-base-qa-qg-hl-portuguese-squad_v1`.
   **Recomenda-se que `CHUNK_SIZE` seja de no máximo 512 ao gerar perguntas e respostas.**
   A função `generate_qa` limita automaticamente `doc_stride` para nunca exceder o
-  tamanho máximo suportado pelo tokenizer.
-  Use `QA_EXPLICIT_PROMPT` para gerar respostas com `model.generate` a partir de
-  um prompt "question: ... context: ...".
+  tamanho máximo suportado pelo tokenizer. Use `QA_EXPLICIT_PROMPT` para gerar
+  respostas com `model.generate` a partir de um prompt "question: ... context:
+  ...". Atenção: somente modelos seq2seq (ex.: `t5-base-qa-qg-hl`) possuem esse
+  método. Modelos de QA clássicos, como `Narrativa/mT5-base-finetuned-tydiQA-xqa`,
+  utilizam `AutoModelForQuestionAnswering` e não implementam `generate`.
 - **Outros**: `CSV_FULL` e `CSV_INCR` podem apontar para arquivos CSV locais de
   vulnerabilidades (opcional).
 
