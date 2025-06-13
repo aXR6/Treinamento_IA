@@ -37,6 +37,8 @@ SBERT_MODEL_NAME        = os.getenv("SBERT_MODEL_NAME")
 # Modelos para geração de perguntas e respostas
 QG_MODEL = os.getenv("QG_MODEL", "valhalla/t5-base-qa-qg-hl")
 QA_MODEL = os.getenv("QA_MODEL", QG_MODEL)
+# Ativa geracao de respostas via prompt explicito "question: ... context: ...".
+QA_EXPLICIT_PROMPT = os.getenv("QA_EXPLICIT_PROMPT", "0").lower() in ("1", "true", "yes")
 TRAINING_MODEL_NAME    = os.getenv(
     "TRAINING_MODEL_NAME",
     "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",

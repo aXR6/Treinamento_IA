@@ -39,6 +39,7 @@ from config import (
     QG_MODEL,
     QA_MODEL,
     MAX_SEQ_LENGTH,
+    QA_EXPLICIT_PROMPT,
 )
 from metrics import record_metrics
 
@@ -220,9 +221,25 @@ def generate_qa(text: str) -> tuple[str, str]:
             logging.debug(f"QA doc_stride={doc_stride} max_len={max_len}")
 
             kwargs = {"doc_stride": doc_stride, "max_seq_len": max_seq}
-            qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
-            if isinstance(qa_res, dict):
-                answer = qa_res.get("answer", "")
+            if QA_EXPLICIT_PROMPT:
+                try:
+                    input_text = f"question: {question}  context: {text}"
+                    tok = _QA_PIPELINE.tokenizer
+                    model = _QA_PIPELINE.model
+                    data = tok(input_text, return_tensors="pt")
+                    data = {k: v.to(model.device) for k, v in data.items()}
+                    out_ids = model.generate(**data)
+                    answer = tok.decode(out_ids[0], skip_special_tokens=True).strip()
+                    qa_res = {"answer": answer}
+                except Exception as e:
+                    logging.error(f"QA explicito falhou: {e}; usando pipeline padrao")
+                    qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
+                    if isinstance(qa_res, dict):
+                        answer = qa_res.get("answer", "")
+            else:
+                qa_res = _QA_PIPELINE(question=question, context=text, **kwargs)
+                if isinstance(qa_res, dict):
+                    answer = qa_res.get("answer", "")
 
         if not question or not answer:
             logging.warning(
