@@ -125,7 +125,7 @@ def test_save_to_postgres(pg, monkeypatch):
     monkeypatch.setattr(pg.psycopg2, 'connect', lambda **k: DummyConn())
     monkeypatch.setattr(pg, 'hierarchical_chunk_generator', lambda t,m,*a,**k: ['c1','c2'])
     monkeypatch.setattr(pg, 'generate_embedding', lambda text, m, d, device: [0.0,0.0,0.0])
-    monkeypatch.setattr(pg, 'generate_qa', lambda text: ('Q','A'))
+    monkeypatch.setattr(pg, 'generate_qa', lambda text, device='cpu': ('Q','A'))
     monkeypatch.setattr(pg, 'get_cross_encoder', lambda model, device: DummyCE())
     res = pg.save_to_postgres('f','txt', {'__query':'q'}, 'm', 3, 'cpu')
     assert len(res) == 2
@@ -155,7 +155,7 @@ def test_generate_qa_limits_doc_stride(pg, monkeypatch):
     monkeypatch.setattr(pg, "_QA_PIPELINE", qa)
     monkeypatch.setattr(pg, "MAX_SEQ_LENGTH", 32)
 
-    q, a = pg.generate_qa("word " * 40)
+    q, a = pg.generate_qa("word " * 40, device='cpu')
     assert q and a
     kwargs = qa.calls[0]
     specials = qa.tokenizer.num_special_tokens_to_add(pair=True)
@@ -199,7 +199,7 @@ def test_generate_qa_explicit_prompt_fallback(pg, monkeypatch):
     monkeypatch.setattr(tf.AutoModelForSeq2SeqLM, 'from_pretrained', lambda m: FailModel())
     monkeypatch.setattr(tf.AutoTokenizer, 'from_pretrained', lambda m: types.SimpleNamespace(__call__=lambda text, return_tensors='pt': {'input_ids':[0]}, decode=lambda ids, skip_special_tokens=True: 'A'))
 
-    q, a = pg.generate_qa("word " * 40)
+    q, a = pg.generate_qa("word " * 40, device='cpu')
     assert q == "Q"
     assert a == "A"
     assert len(qa.calls) == 1
@@ -237,8 +237,79 @@ def test_generate_qa_tydiqa_prompt(pg, monkeypatch):
     monkeypatch.setattr(pg, "MAX_SEQ_LENGTH", 64)
     monkeypatch.setattr(pg, "nltk", None)
 
-    q, a = pg.generate_qa("S1. " * 30)
+    q, a = pg.generate_qa("S1. " * 30, device='cpu')
     assert q == "Q"
     assert a == "A"
     assert t2t.prompts and t2t.prompts[0].startswith("answer:")
+
+
+def test_generate_qa_pipeline_gpu_oom_fallback(pg, monkeypatch):
+    class DummyQA:
+        def __init__(self):
+            self.called = []
+            self.tokenizer = types.SimpleNamespace(
+                model_max_length=16,
+                tokenize=lambda text: text.split(),
+                num_special_tokens_to_add=lambda pair=True: 2,
+            )
+
+        def __call__(self, question, context, **kwargs):
+            self.called.append((question, context, kwargs))
+            return {"answer": "A"}
+
+    qa_obj = DummyQA()
+
+    def fake_pipeline(task, model, device=0):
+        if device == 0:
+            raise RuntimeError("out of memory")
+        return qa_obj
+
+    monkeypatch.setattr(pg, "_QG_AVAILABLE", True)
+    monkeypatch.setattr(pg, "_QG_PIPELINE", lambda text: ["Q"])
+    monkeypatch.setattr(pg, "_QA_PIPELINE", None)
+    monkeypatch.setattr(pg, "hf_pipeline", fake_pipeline)
+    monkeypatch.setattr(pg, "MAX_SEQ_LENGTH", 32)
+
+    q, a = pg.generate_qa("x " * 60, device="gpu")
+    assert q == "Q"
+    assert a == "A"
+    assert pg._QA_PIPELINE is qa_obj
+
+
+def test_generate_qa_model_gpu_oom_fallback(pg, monkeypatch):
+    class DummyModel:
+        def __init__(self):
+            self.device = "cpu"
+
+        def to(self, dev):
+            if dev == "cuda":
+                raise RuntimeError("out of memory")
+            self.device = dev
+            return self
+
+        def generate(self, **k):
+            return [[1]]
+
+    class DummyTok:
+        def __call__(self, text, return_tensors="pt"):
+            return {"input_ids": types.SimpleNamespace(to=lambda d: [0])}
+
+        def decode(self, ids, skip_special_tokens=True):
+            return "A"
+
+    monkeypatch.setattr(pg, "_QG_AVAILABLE", True)
+    monkeypatch.setattr(pg, "_QG_PIPELINE", lambda text: ["Q"])
+    monkeypatch.setattr(pg, "_QA_MODEL", None)
+    monkeypatch.setattr(pg, "_QA_TOKENIZER", None)
+    monkeypatch.setattr(pg, "QA_EXPLICIT_PROMPT", True)
+
+    tf = sys.modules["transformers"]
+    monkeypatch.setattr(tf.AutoTokenizer, "from_pretrained", lambda m: DummyTok())
+    monkeypatch.setattr(tf.AutoModelForSeq2SeqLM, "from_pretrained", lambda m: DummyModel())
+
+    q, a = pg.generate_qa("x " * 60, device="gpu")
+    assert q == "Q"
+    assert a == "A"
+    assert isinstance(pg._QA_MODEL, DummyModel)
+    assert pg._QA_MODEL.device == "cpu"
 
