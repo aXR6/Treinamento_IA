@@ -40,6 +40,22 @@ def get_sbert_model(
             logging.info(f"Carregando SBERT '{model_name}' em {device}…")
             _SBERT_CACHE[key] = SentenceTransformer(model_name, device=device)
             logging.info(f"SBERT '{model_name}' carregado com sucesso em {device}.")
+        except RuntimeError as e:
+            msg = str(e).lower()
+            if "out of memory" in msg and device != "cpu":
+                logging.error(
+                    f"Falha ao carregar SBERT '{model_name}' em {device} devido a falta de memória: {e}; usando CPU"
+                )
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                cpu_key = (model_name, "cpu")
+                if cpu_key not in _SBERT_CACHE:
+                    _SBERT_CACHE[cpu_key] = SentenceTransformer(model_name, device="cpu")
+                _SBERT_CACHE[key] = _SBERT_CACHE[cpu_key]
+                logging.info(f"SBERT '{model_name}' carregado com sucesso em CPU (fallback).")
+            else:
+                logging.error(f"Falha ao carregar SBERT '{model_name}' em {device}: {e}")
+                raise
         except Exception as e:
             logging.error(f"Falha ao carregar SBERT '{model_name}' em {device}: {e}")
             raise
