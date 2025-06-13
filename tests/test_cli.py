@@ -2,6 +2,7 @@ import importlib
 import os
 import types
 import sys
+import contextlib
 
 import pytest
 
@@ -66,4 +67,37 @@ def test_select_functions(monkeypatch):
     assert main.select_embedding('m1') == main.EMBED_MODELS['2']
     assert main.select_dimension(1) == main.DIMENSIONS['2']
     assert main.select_database('d_pdf') == main.DB_OPTIONS['2']
+
+
+def test_test_model(monkeypatch):
+    main = load_main(monkeypatch)
+    tf = sys.modules['transformers']
+
+    class DummyTok:
+        def __call__(self, text, return_tensors='pt'):
+            return {'input_ids': types.SimpleNamespace(to=lambda d: [0])}
+        def decode(self, ids, skip_special_tokens=True):
+            return 'out'
+
+    class DummyModel:
+        def __init__(self):
+            self.device = 'cpu'
+            self.called = False
+        def to(self, dev):
+            self.device = dev
+            return self
+        def generate(self, **k):
+            self.called = True
+            return [[1]]
+
+    tf.AutoTokenizer = types.SimpleNamespace(from_pretrained=lambda p: DummyTok())
+    dummy = DummyModel()
+    tf.AutoModelForCausalLM = types.SimpleNamespace(from_pretrained=lambda p: dummy)
+
+    monkeypatch.setattr(main.torch, 'no_grad', lambda: contextlib.nullcontext(), raising=False)
+
+    inputs = iter(['hi', ''])
+    monkeypatch.setattr('builtins.input', lambda prompt='': next(inputs))
+    main.test_model('m', 'cpu')
+    assert dummy.called
 
