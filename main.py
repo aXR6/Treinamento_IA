@@ -54,6 +54,73 @@ DB_OPTIONS = {
     "2": PG_DB_QA,
 }
 
+def _resolve_dev(device: str) -> str:
+    if device == "gpu" and torch.cuda.is_available():
+        return "cuda"
+    if device in ("gpu", "auto") and torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+def test_model(path: str, device: str) -> None:
+    """Carrega modelo e permite gerar texto interativamente."""
+    try:
+        from transformers import AutoTokenizer, AutoModelForCausalLM
+    except Exception as e:
+        logging.error(f"Falha ao importar transformers: {e}")
+        print("Dependência 'transformers' ausente")
+        return
+
+    dev = _resolve_dev(device)
+    try:
+        tok = AutoTokenizer.from_pretrained(path)
+        model = AutoModelForCausalLM.from_pretrained(path).to(dev)
+    except Exception as e:
+        logging.error(f"Falha ao carregar modelo: {e}")
+        print("Não foi possível carregar o modelo informado")
+        return
+
+    while True:
+        prompt = input("Prompt (ENTER para sair): ").strip()
+        if not prompt:
+            break
+        data = tok(prompt, return_tensors="pt")
+        data = {k: v.to(model.device) for k, v in data.items()}
+        with torch.no_grad():
+            out_ids = model.generate(**data, max_new_tokens=128)
+        print(tok.decode(out_ids[0], skip_special_tokens=True))
+
+def model_test_menu(current_path: str, device: str) -> tuple[str, str]:
+    while True:
+        clear_screen()
+        print("*** Menu Teste de Modelo ***")
+        show = current_path or "(indefinido)"
+        print(f"1 - Caminho do modelo (atual: {show})")
+        print(f"2 - Dispositivo (atual: {device})")
+        print("3 - Iniciar teste")
+        print("0 - Voltar")
+        c = input("> ").strip()
+
+        if c == "0":
+            break
+        elif c == "1":
+            p = input(f"Diretório do modelo [{current_path}]: ").strip()
+            if p:
+                current_path = p
+        elif c == "2":
+            device = select_device(device)
+        elif c == "3":
+            if not current_path:
+                print("Caminho não definido.")
+                input("ENTER para continuar…")
+                continue
+            test_model(current_path, device)
+            input("ENTER para continuar…")
+        else:
+            print("Opção inválida.")
+            time.sleep(1)
+
+    return current_path, device
+
 def select_device(current: str) -> str:
     print("\n*** Selecione Dispositivo ***")
     options = ["cpu", "auto"]
@@ -340,6 +407,7 @@ def main():
     eval_steps = EVAL_STEPS
     val_split = VALIDATION_SPLIT
     stats = {"processed": 0, "errors": 0}
+    test_path = ""
 
     while True:
         clear_screen()
@@ -353,6 +421,7 @@ def main():
         print("7 - Pasta")
         print("8 - Treinamento")
         print("9 - Treinamento QA")
+        print("10 - Testar Modelo")
         print("0 - Sair")
         c = input("> ").strip()
 
@@ -461,6 +530,9 @@ def main():
                 eval_steps,
                 val_split,
             )
+
+        elif c == "10":
+            test_path, device = model_test_menu(test_path, device)
 
         else:
             print("Opção inválida.")
