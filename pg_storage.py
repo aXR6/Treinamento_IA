@@ -112,6 +112,11 @@ def generate_qa(text: str) -> tuple[str, str]:
     Retorna ("", "") imediatamente quando o texto possui menos de 50
     caracteres úteis. Caso a pipeline produza pergunta ou resposta vazia,
     o aviso de log inclui o output cru para facilitar a depuração.
+
+    Modelos como ``Narrativa/mT5-base-finetuned-tydiQA-question-generation``
+    geram melhores perguntas quando recebem um prompt no formato
+    ``answer: <resposta> context: <contexto>``. Esta função detecta tal modelo
+    e monta automaticamente o prompt usando a primeira sentença como resposta.
     """
     global _QG_PIPELINE, _QA_PIPELINE, _T2T_PIPELINE, _QA_MODEL, _QA_TOKENIZER
 
@@ -123,7 +128,7 @@ def generate_qa(text: str) -> tuple[str, str]:
         logging.error("Modulo question_generation ausente; pulando geracao de QA")
         return "", ""
 
-    if _QG_PIPELINE is None:
+    if _QG_PIPELINE is None and "tydiqa-question-generation" not in QG_MODEL.lower():
         try:
             _QG_PIPELINE = qg_pipeline("question-generation", model=QG_MODEL)
             logging.info(f"QG pipeline loaded with {QG_MODEL}")
@@ -166,9 +171,44 @@ def generate_qa(text: str) -> tuple[str, str]:
             return "", ""
 
     try:
-        raw_questions = _QG_PIPELINE(text)
+        if "tydiqa-question-generation" in QG_MODEL.lower():
+            if _T2T_PIPELINE is None:
+                try:
+                    device_id = 0 if torch.cuda.is_available() else -1
+                    _T2T_PIPELINE = hf_pipeline(
+                        "text2text-generation", model=QG_MODEL, device=device_id
+                    )
+                except Exception as e:
+                    logging.error(f"Failed to load TyDiQA pipeline: {e}")
+                    return "", ""
+            if nltk is not None:
+                try:
+                    answer_span = nltk.sent_tokenize(text)[0]
+                except Exception:
+                    answer_span = text.split(".")[0]
+            else:
+                answer_span = text.split(".")[0]
+            if not answer_span.strip():
+                answer_span = " ".join(text.split()[:20])
+            prompt = f"answer: {answer_span.strip()} context: {text}"
+            try:
+                res = _T2T_PIPELINE(prompt, max_length=64, num_beams=4)
+            except Exception as e:
+                logging.error(f"TyDiQA question generation failed: {e}")
+                return "", ""
+            raw_questions = res
+        else:
+            raw_questions = _QG_PIPELINE(text)
+
         if isinstance(raw_questions, list):
-            questions = [q if isinstance(q, str) else q.get("question", "") for q in raw_questions]
+            questions = []
+            for q in raw_questions:
+                if isinstance(q, str):
+                    questions.append(q)
+                elif isinstance(q, dict):
+                    questions.append(q.get("question", q.get("generated_text", "")))
+                else:
+                    questions.append(str(q))
         elif isinstance(raw_questions, str):
             questions = [raw_questions]
         else:

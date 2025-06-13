@@ -204,3 +204,41 @@ def test_generate_qa_explicit_prompt_fallback(pg, monkeypatch):
     assert a == "A"
     assert len(qa.calls) == 1
 
+
+def test_generate_qa_tydiqa_prompt(pg, monkeypatch):
+    class DummyQA:
+        def __init__(self):
+            self.calls = []
+            self.tokenizer = types.SimpleNamespace(
+                model_max_length=32,
+                tokenize=lambda text: text.split(),
+                num_special_tokens_to_add=lambda pair=True: 2,
+            )
+
+        def __call__(self, question, context, **kwargs):
+            self.calls.append((question, context, kwargs))
+            return {"answer": "A"}
+
+    class DummyT2T:
+        def __init__(self):
+            self.prompts = []
+
+        def __call__(self, prompt, max_length=64, num_beams=4):
+            self.prompts.append(prompt)
+            return [{"generated_text": "Q"}]
+
+    qa = DummyQA()
+    t2t = DummyT2T()
+    monkeypatch.setattr(pg, "QG_MODEL", "Narrativa/mT5-base-finetuned-tydiQA-question-generation")
+    monkeypatch.setattr(pg, "_QG_AVAILABLE", True)
+    monkeypatch.setattr(pg, "_QG_PIPELINE", None)
+    monkeypatch.setattr(pg, "_T2T_PIPELINE", t2t)
+    monkeypatch.setattr(pg, "_QA_PIPELINE", qa)
+    monkeypatch.setattr(pg, "MAX_SEQ_LENGTH", 64)
+    monkeypatch.setattr(pg, "nltk", None)
+
+    q, a = pg.generate_qa("S1. " * 30)
+    assert q == "Q"
+    assert a == "A"
+    assert t2t.prompts and t2t.prompts[0].startswith("answer:")
+
