@@ -126,7 +126,18 @@ def generate_embedding(text: str, model_name: str, dim: int, device: str) -> lis
     return vec
 
 
-def generate_qa(text: str) -> tuple[str, str]:
+def _resolve_device(device: str) -> str:
+    if device == "auto":
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    if device == "gpu":
+        if torch.cuda.is_available():
+            return "cuda"
+        logging.warning("GPU selecionada, mas não disponível. Usando CPU.")
+        return "cpu"
+    return "cpu"
+
+
+def generate_qa(text: str, device: str = "auto") -> tuple[str, str]:
     """Gera um par (pergunta, resposta) a partir do texto.
 
     Retorna ("", "") imediatamente quando o texto possui menos de 50
@@ -139,6 +150,9 @@ def generate_qa(text: str) -> tuple[str, str]:
     e monta automaticamente o prompt usando a primeira sentença como resposta.
     """
     global _QG_PIPELINE, _QA_PIPELINE, _T2T_PIPELINE, _QA_MODEL, _QA_TOKENIZER
+
+    device_use = _resolve_device(device)
+    device_id = 0 if device_use == "cuda" else -1
 
     if len(text.strip()) < 50:
         logging.info("Texto muito curto para gerar QA; pulando")
@@ -171,8 +185,19 @@ def generate_qa(text: str) -> tuple[str, str]:
                     _QA_MODEL = AutoModelForSeq2SeqLM.from_pretrained(QA_MODEL)
                 except Exception:
                     _QA_MODEL = AutoModelForCausalLM.from_pretrained(QA_MODEL)
-                if torch.cuda.is_available():
-                    _QA_MODEL = _QA_MODEL.to("cuda")
+                if device_use == "cuda":
+                    try:
+                        _QA_MODEL = _QA_MODEL.to("cuda")
+                    except RuntimeError as e:
+                        if "out of memory" in str(e).lower():
+                            logging.error(
+                                f"Falha ao mover modelo de QA para CUDA: {e}; usando CPU"
+                            )
+                            if torch.cuda.is_available():
+                                torch.cuda.empty_cache()
+                            _QA_MODEL = _QA_MODEL.to("cpu")
+                        else:
+                            raise
                 logging.info(f"QA model loaded with {QA_MODEL}")
             except Exception as e:
                 logging.error(
@@ -182,8 +207,28 @@ def generate_qa(text: str) -> tuple[str, str]:
                 _QA_TOKENIZER = None
     elif _QA_PIPELINE is None:
         try:
-            _QA_PIPELINE = hf_pipeline("question-answering", model=QA_MODEL)
-            logging.info(f"QA pipeline loaded with {QA_MODEL}")
+            _QA_PIPELINE = hf_pipeline(
+                "question-answering", model=QA_MODEL, device=device_id
+            )
+            logging.info(f"QA pipeline loaded with {QA_MODEL} em {device_use}")
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower() and device_use == "cuda":
+                logging.error(
+                    f"Falha ao carregar pipeline QA em CUDA: {e}; usando CPU"
+                )
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                _QA_PIPELINE = hf_pipeline(
+                    "question-answering", model=QA_MODEL, device=-1
+                )
+                logging.info(
+                    f"QA pipeline loaded with {QA_MODEL} em CPU (fallback)"
+                )
+            else:
+                logging.error(
+                    f"Falha ao carregar pipeline de question answering ({QA_MODEL}): {e}"
+                )
+                return "", ""
         except Exception as e:
             logging.error(
                 f"Falha ao carregar pipeline de question answering ({QA_MODEL}): {e}"
@@ -194,13 +239,28 @@ def generate_qa(text: str) -> tuple[str, str]:
         if "tydiqa-question-generation" in QG_MODEL.lower():
             if _T2T_PIPELINE is None:
                 try:
-                    device_id = 0 if torch.cuda.is_available() else -1
                     _T2T_PIPELINE = hf_pipeline(
                         "text2text-generation", model=QG_MODEL, device=device_id
                     )
-                except Exception as e:
-                    logging.error(f"Failed to load TyDiQA pipeline: {e}")
-                    return "", ""
+                    logging.info(
+                        f"TyDiQA text2text pipeline loaded em {device_use}"
+                    )
+                except RuntimeError as e:
+                    if "out of memory" in str(e).lower() and device_use == "cuda":
+                        logging.error(
+                            f"Falha ao carregar TyDiQA pipeline em CUDA: {e}; usando CPU"
+                        )
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                        _T2T_PIPELINE = hf_pipeline(
+                            "text2text-generation", model=QG_MODEL, device=-1
+                        )
+                        logging.info(
+                            "TyDiQA text2text pipeline loaded em CPU (fallback)"
+                        )
+                    else:
+                        logging.error(f"Failed to load TyDiQA pipeline: {e}")
+                        return "", ""
             if nltk is not None:
                 try:
                     answer_span = nltk.sent_tokenize(text)[0]
@@ -240,13 +300,28 @@ def generate_qa(text: str) -> tuple[str, str]:
             )
             if _T2T_PIPELINE is None:
                 try:
-                    device_id = 0 if torch.cuda.is_available() else -1
                     _T2T_PIPELINE = hf_pipeline(
                         "text2text-generation", model=QG_MODEL, device=device_id
                     )
-                except Exception as e:
-                    logging.error(f"Failed to load fallback pipeline: {e}")
-                    return "", ""
+                    logging.info(
+                        f"TyDiQA text2text pipeline loaded em {device_use}"
+                    )
+                except RuntimeError as e:
+                    if "out of memory" in str(e).lower() and device_use == "cuda":
+                        logging.error(
+                            f"Falha ao carregar fallback pipeline em CUDA: {e}; usando CPU"
+                        )
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                        _T2T_PIPELINE = hf_pipeline(
+                            "text2text-generation", model=QG_MODEL, device=-1
+                        )
+                        logging.info(
+                            "TyDiQA text2text pipeline loaded em CPU (fallback)"
+                        )
+                    else:
+                        logging.error(f"Failed to load fallback pipeline: {e}")
+                        return "", ""
             try:
                 hl_text = text
                 if nltk is not None:
@@ -288,8 +363,30 @@ def generate_qa(text: str) -> tuple[str, str]:
             if use_pipeline:
                 if _QA_PIPELINE is None:
                     try:
-                        _QA_PIPELINE = hf_pipeline("question-answering", model=QA_MODEL)
-                        logging.info(f"QA pipeline loaded with {QA_MODEL}")
+                        _QA_PIPELINE = hf_pipeline(
+                            "question-answering", model=QA_MODEL, device=device_id
+                        )
+                        logging.info(
+                            f"QA pipeline loaded with {QA_MODEL} em {device_use}"
+                        )
+                    except RuntimeError as e:
+                        if "out of memory" in str(e).lower() and device_use == "cuda":
+                            logging.error(
+                                f"Falha ao carregar pipeline QA em CUDA: {e}; usando CPU"
+                            )
+                            if torch.cuda.is_available():
+                                torch.cuda.empty_cache()
+                            _QA_PIPELINE = hf_pipeline(
+                                "question-answering", model=QA_MODEL, device=-1
+                            )
+                            logging.info(
+                                f"QA pipeline loaded with {QA_MODEL} em CPU (fallback)"
+                            )
+                        else:
+                            logging.error(
+                                f"Falha ao carregar pipeline de question answering ({QA_MODEL}): {e}"
+                            )
+                            return question, ""
                     except Exception as e:
                         logging.error(
                             f"Falha ao carregar pipeline de question answering ({QA_MODEL}): {e}"
@@ -395,7 +492,7 @@ def save_to_postgres(filename: str,
         for idx, chunk in enumerate(hierarchical_chunk_generator(text, metadata, embedding_model, device_use)):
             clean = chunk.replace("\x00", "")
             emb = generate_embedding(clean, embedding_model, embedding_dim, device_use)
-            question, answer = generate_qa(clean)
+            question, answer = generate_qa(clean, device_use)
 
             if not question or not answer:
                 logging.warning(
