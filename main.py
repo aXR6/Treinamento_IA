@@ -17,6 +17,7 @@ from config import (
     DIM_MXBAI, DIM_SERAFIM, DIM_MINILM_L6, DIM_MINIL12, DIM_MPNET,
     OCR_THRESHOLD, EVAL_STEPS, VALIDATION_SPLIT, MAX_SEQ_LENGTH,
     PG_DB_PDF, PG_DB_QA,
+    TOKENIZE_NUM_PROC, DATALOADER_NUM_WORKERS,
     validate_config
 )
 from extractors import extract_text
@@ -234,7 +235,9 @@ def training_menu(
     batch_size: int,
     eval_steps: int,
     val_split: float,
-) -> tuple[int, bool, int, int, int, float]:
+    tokenize_num_proc: int,
+    dataloader_num_workers: int,
+) -> tuple[int, bool, int, int, int, float, int, int]:
     """Exibe o submenu de treinamento."""
     while True:
         clear_screen()
@@ -248,6 +251,8 @@ def training_menu(
         print(f"5 - Batch size (atual: {batch_size})")
         print(f"6 - Avaliar a cada N passos (atual: {eval_steps})")
         print(f"7 - Porcentagem validação (atual: {val_split})")
+        print(f"8 - Processos de tokenização (atual: {tokenize_num_proc})")
+        print(f"9 - Workers DataLoader (atual: {dataloader_num_workers})")
         print("0 - Voltar")
         c = input("> ").strip()
 
@@ -265,6 +270,8 @@ def training_menu(
                 eval_steps=eval_steps,
                 validation_split=val_split,
                 max_seq_length=MAX_SEQ_LENGTH,
+                tokenize_num_proc=tokenize_num_proc,
+                dataloader_num_workers=dataloader_num_workers,
             )
             input("ENTER para continuar…")
 
@@ -302,7 +309,16 @@ def training_menu(
             print("Opção inválida.")
             time.sleep(1)
 
-    return train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split
+    return (
+        train_dim,
+        allow_tf_cuda,
+        epochs,
+        batch_size,
+        eval_steps,
+        val_split,
+        tokenize_num_proc,
+        dataloader_num_workers,
+    )
 
 
 def qa_training_menu(
@@ -313,7 +329,9 @@ def qa_training_menu(
     batch_size: int,
     eval_steps: int,
     val_split: float,
-) -> tuple[int, bool, int, int, int, float]:
+    tokenize_num_proc: int,
+    dataloader_num_workers: int,
+) -> tuple[int, bool, int, int, int, float, int, int]:
     """Menu de treinamento para perguntas e respostas."""
     while True:
         clear_screen()
@@ -327,6 +345,8 @@ def qa_training_menu(
         print(f"5 - Batch size (atual: {batch_size})")
         print(f"6 - Avaliar a cada N passos (atual: {eval_steps})")
         print(f"7 - Porcentagem validação (atual: {val_split})")
+        print(f"8 - Processos de tokenização (atual: {tokenize_num_proc})")
+        print(f"9 - Workers DataLoader (atual: {dataloader_num_workers})")
         print("0 - Voltar")
         c = input("> ").strip()
 
@@ -343,6 +363,8 @@ def qa_training_menu(
                 eval_steps=eval_steps,
                 validation_split=val_split,
                 max_seq_length=MAX_SEQ_LENGTH,
+                tokenize_num_proc=tokenize_num_proc,
+                dataloader_num_workers=dataloader_num_workers,
             )
             input("ENTER para continuar…")
         elif c == "2":
@@ -369,11 +391,30 @@ def qa_training_menu(
                     val_split = v
             except ValueError:
                 pass
+
+        elif c == "8":
+            inp = input(f"Tokenize num_proc [{tokenize_num_proc}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                tokenize_num_proc = int(inp)
+
+        elif c == "9":
+            inp = input(f"Dataloader workers [{dataloader_num_workers}]: ").strip()
+            if inp.isdigit() and int(inp) >= 0:
+                dataloader_num_workers = int(inp)
         else:
             print("Opção inválida.")
             time.sleep(1)
 
-    return train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split
+    return (
+        train_dim,
+        allow_tf_cuda,
+        epochs,
+        batch_size,
+        eval_steps,
+        val_split,
+        tokenize_num_proc,
+        dataloader_num_workers,
+    )
 
 def process_file(path: str, strat: str, model: str, dim: int, device: str,
                  db_name: str, stats: dict, processed_root: Optional[str] = None):
@@ -455,6 +496,8 @@ def main():
     batch_size = 1
     eval_steps = EVAL_STEPS
     val_split = VALIDATION_SPLIT
+    tokenize_num_proc = TOKENIZE_NUM_PROC
+    dataloader_num_workers = DATALOADER_NUM_WORKERS
     stats = {"processed": 0, "errors": 0}
     test_path = ""
 
@@ -559,7 +602,16 @@ def main():
             input("ENTER para continuar…")
 
         elif c == "8":
-            train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split = training_menu(
+            (
+                train_dim,
+                allow_tf_cuda,
+                epochs,
+                batch_size,
+                eval_steps,
+                val_split,
+                tokenize_num_proc,
+                dataloader_num_workers,
+            ) = training_menu(
                 train_dim,
                 device,
                 allow_tf_cuda,
@@ -567,10 +619,21 @@ def main():
                 batch_size,
                 eval_steps,
                 val_split,
+                tokenize_num_proc,
+                dataloader_num_workers,
             )
 
         elif c == "9":
-            train_dim, allow_tf_cuda, epochs, batch_size, eval_steps, val_split = qa_training_menu(
+            (
+                train_dim,
+                allow_tf_cuda,
+                epochs,
+                batch_size,
+                eval_steps,
+                val_split,
+                tokenize_num_proc,
+                dataloader_num_workers,
+            ) = qa_training_menu(
                 train_dim,
                 device,
                 allow_tf_cuda,
@@ -578,6 +641,8 @@ def main():
                 batch_size,
                 eval_steps,
                 val_split,
+                tokenize_num_proc,
+                dataloader_num_workers,
             )
 
         elif c == "10":

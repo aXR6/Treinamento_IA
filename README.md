@@ -46,7 +46,8 @@ O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
   é `128`.
 - **Treinamento**: `TRAINING_MODEL_NAME`, `EVAL_STEPS`, `VALIDATION_SPLIT`,
   `LEARNING_RATE`, `WEIGHT_DECAY`, `WARMUP_STEPS`,
-  `GRADIENT_ACCUMULATION_STEPS` e `LR_SCHEDULER_TYPE`
+  `GRADIENT_ACCUMULATION_STEPS`, `LR_SCHEDULER_TYPE`,
+  `TOKENIZE_NUM_PROC` e `DATALOADER_NUM_WORKERS`
   personalizam o fine-tuning de modelos da Hugging Face.
 - **Perguntas e Respostas**: `QG_MODEL` e `QA_MODEL` definem os modelos
   usados para gerar perguntas e respostas (padrão `valhalla/t5-base-qa-qg-hl`).
@@ -108,6 +109,8 @@ WEIGHT_DECAY=0.01
 WARMUP_STEPS=100
 GRADIENT_ACCUMULATION_STEPS=1
 LR_SCHEDULER_TYPE=linear
+# TOKENIZE_NUM_PROC=12
+# DATALOADER_NUM_WORKERS=12
 QG_MODEL=valhalla/t5-base-qa-qg-hl
 QA_MODEL=${QG_MODEL}
 # Ativa prompt explicito no QA (opcional)
@@ -115,6 +118,8 @@ QA_MODEL=${QG_MODEL}
 # QG_MODEL=Narrativa/mT5-base-finetuned-tydiQA-question-generation
 # QA_MODEL=Narrativa/mT5-base-finetuned-tydiQA-xqa
 ```
+Em CPUs com 12 núcleos, defina `TOKENIZE_NUM_PROC` e
+`DATALOADER_NUM_WORKERS` como `12` para máximo desempenho.
 
 ### Estrutura do Projeto
 
