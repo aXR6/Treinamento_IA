@@ -88,6 +88,10 @@ WEIGHT_DECAY                = float(os.getenv("WEIGHT_DECAY", "0.01"))
 WARMUP_STEPS                = int(os.getenv("WARMUP_STEPS", "100"))
 GRADIENT_ACCUMULATION_STEPS = int(os.getenv("GRADIENT_ACCUMULATION_STEPS", "1"))
 LR_SCHEDULER_TYPE           = os.getenv("LR_SCHEDULER_TYPE", "linear")
+# Quantos processos paralelos usar ao tokenizar datasets
+TOKENIZE_NUM_PROC           = int(os.getenv("TOKENIZE_NUM_PROC", "1"))
+# Workers do PyTorch DataLoader usados pelo Trainer
+DATALOADER_NUM_WORKERS      = int(os.getenv("DATALOADER_NUM_WORKERS", "0"))
 
 def validate_config():
     missing = []

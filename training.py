@@ -31,6 +31,8 @@ from config import (
     WARMUP_STEPS,
     GRADIENT_ACCUMULATION_STEPS,
     LR_SCHEDULER_TYPE,
+    TOKENIZE_NUM_PROC,
+    DATALOADER_NUM_WORKERS,
 )
 
 def _fetch_texts(dim: int, db_name: str, batch_size: int = 1000) -> Iterator[str]:
@@ -150,6 +152,8 @@ def train_model(
     warmup_steps: int = WARMUP_STEPS,
     gradient_accumulation_steps: int = GRADIENT_ACCUMULATION_STEPS,
     lr_scheduler_type: str = LR_SCHEDULER_TYPE,
+    tokenize_num_proc: int = TOKENIZE_NUM_PROC,
+    dataloader_num_workers: int = DATALOADER_NUM_WORKERS,
 ) -> None:
     """Ajusta um modelo Hugging Face usando textos do PostgreSQL.
 
@@ -193,7 +197,12 @@ def train_model(
             max_len = max_seq_length or tokenizer.model_max_length
             return tokenizer(examples["text"], truncation=True, max_length=max_len)
 
-        tokenized = dataset.map(tokenize_fn, batched=True, remove_columns=["text"])
+        tokenized = dataset.map(
+            tokenize_fn,
+            batched=True,
+            remove_columns=["text"],
+            num_proc=tokenize_num_proc,
+        )
         split = tokenized.train_test_split(test_size=validation_split, seed=42)
         train_ds = split["train"]
         eval_ds = split["test"]
@@ -209,6 +218,7 @@ def train_model(
             "per_device_train_batch_size": batch_size,
             "overwrite_output_dir": True,
             "use_cpu": resolved_device == "cpu",
+            "dataloader_num_workers": dataloader_num_workers,
         }
 
         sig = inspect.signature(TrainingArguments)
@@ -304,6 +314,8 @@ def train_qa_model(
     warmup_steps: int = WARMUP_STEPS,
     gradient_accumulation_steps: int = GRADIENT_ACCUMULATION_STEPS,
     lr_scheduler_type: str = LR_SCHEDULER_TYPE,
+    tokenize_num_proc: int = TOKENIZE_NUM_PROC,
+    dataloader_num_workers: int = DATALOADER_NUM_WORKERS,
 ) -> None:
     """Ajusta modelo usando pares pergunta/resposta do PostgreSQL."""
 
@@ -339,7 +351,12 @@ def train_qa_model(
             max_len = max_seq_length or tokenizer.model_max_length
             return tokenizer(examples["text"], truncation=True, max_length=max_len)
 
-        tokenized = dataset.map(tokenize_fn, batched=True, remove_columns=["text"])
+        tokenized = dataset.map(
+            tokenize_fn,
+            batched=True,
+            remove_columns=["text"],
+            num_proc=tokenize_num_proc,
+        )
         split = tokenized.train_test_split(test_size=validation_split, seed=42)
         train_ds = split["train"]
         eval_ds = split["test"]
@@ -355,6 +372,7 @@ def train_qa_model(
             "per_device_train_batch_size": batch_size,
             "overwrite_output_dir": True,
             "use_cpu": resolved_device == "cpu",
+            "dataloader_num_workers": dataloader_num_workers,
         }
 
         sig = inspect.signature(TrainingArguments)
