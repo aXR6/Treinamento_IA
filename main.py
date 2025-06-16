@@ -228,6 +228,129 @@ def select_database(current: str) -> str:
     c = input(f"Escolha [{current}]: ").strip()
     return DB_OPTIONS.get(c, current)
 
+
+def _run_training_menu(
+    kind: str,
+    train_fn,
+    train_dim: Optional[int],
+    device: str,
+    allow_tf_cuda: bool,
+    epochs: int,
+    batch_size: int,
+    eval_steps: int,
+    val_split: float,
+    tokenize_num_proc: int,
+    dataloader_num_workers: int,
+) -> tuple[Optional[int], bool, int, int, int, float, int, int]:
+    """Implementa o loop comum dos menus de treinamento."""
+    while True:
+        clear_screen()
+        title = "Menu Treinamento" + (f" {kind}" if kind else "")
+        print(f"*** {title} ***")
+
+        idx = 1
+        opts: dict[str, str] = {}
+        print(f"{idx} - Treinar modelo")
+        opts[str(idx)] = "train"
+        idx += 1
+        print(
+            f"{idx} - Transformers detectar GPU automaticamente: {'Sim' if allow_tf_cuda else 'Não'}"
+        )
+        opts[str(idx)] = "toggle"
+        idx += 1
+        if train_dim is not None:
+            print(f"{idx} - Selecionar tabela (atual: documents_{train_dim})")
+            opts[str(idx)] = "dim"
+            idx += 1
+        print(f"{idx} - Épocas (atual: {epochs})")
+        opts[str(idx)] = "epochs"
+        idx += 1
+        print(f"{idx} - Batch size (atual: {batch_size})")
+        opts[str(idx)] = "batch"
+        idx += 1
+        print(f"{idx} - Avaliar a cada N passos (atual: {eval_steps})")
+        opts[str(idx)] = "eval"
+        idx += 1
+        print(f"{idx} - Porcentagem validação (atual: {val_split})")
+        opts[str(idx)] = "split"
+        idx += 1
+        print(f"{idx} - Processos de tokenização (atual: {tokenize_num_proc})")
+        opts[str(idx)] = "tokenize"
+        idx += 1
+        print(f"{idx} - Workers DataLoader (atual: {dataloader_num_workers})")
+        opts[str(idx)] = "workers"
+        print("0 - Voltar")
+        c = input("> ").strip()
+
+        if c == "0":
+            break
+
+        action = opts.get(c)
+        if action == "train":
+            kwargs = dict(
+                device=device,
+                allow_auto_gpu=allow_tf_cuda,
+                epochs=epochs,
+                batch_size=batch_size,
+                eval_steps=eval_steps,
+                validation_split=val_split,
+                max_seq_length=MAX_SEQ_LENGTH,
+                tokenize_num_proc=tokenize_num_proc,
+                dataloader_num_workers=dataloader_num_workers,
+            )
+            if train_dim is not None:
+                train_fn(train_dim, **kwargs)
+            else:
+                train_fn(**kwargs)
+            input("ENTER para continuar…")
+        elif action == "toggle":
+            allow_tf_cuda = toggle_tf_cuda(allow_tf_cuda)
+        elif action == "dim" and train_dim is not None:
+            train_dim = select_dimension(train_dim)
+        elif action == "epochs":
+            inp = input(f"Número de épocas [{epochs}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                epochs = int(inp)
+        elif action == "batch":
+            inp = input(f"Batch size [{batch_size}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                batch_size = int(inp)
+        elif action == "eval":
+            inp = input(f"Avaliar a cada quantos passos? [{eval_steps}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                eval_steps = int(inp)
+        elif action == "split":
+            inp = input(f"Porcentagem de validação (0-1) [{val_split}]: ").strip()
+            try:
+                v = float(inp)
+                if 0 < v < 1:
+                    val_split = v
+            except ValueError:
+                pass
+        elif action == "tokenize":
+            inp = input(f"Tokenize num_proc [{tokenize_num_proc}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                tokenize_num_proc = int(inp)
+        elif action == "workers":
+            inp = input(f"Dataloader workers [{dataloader_num_workers}]: ").strip()
+            if inp.isdigit() and int(inp) >= 0:
+                dataloader_num_workers = int(inp)
+        else:
+            print("Opção inválida.")
+            time.sleep(1)
+
+    return (
+        train_dim,
+        allow_tf_cuda,
+        epochs,
+        batch_size,
+        eval_steps,
+        val_split,
+        tokenize_num_proc,
+        dataloader_num_workers,
+    )
+
+
 def training_menu(
     train_dim: int,
     device: str,
@@ -239,79 +362,12 @@ def training_menu(
     tokenize_num_proc: int,
     dataloader_num_workers: int,
 ) -> tuple[int, bool, int, int, int, float, int, int]:
-    """Exibe o submenu de treinamento."""
-    while True:
-        clear_screen()
-        print("*** Menu Treinamento ***")
-        print("1 - Treinar modelo")
-        print(
-            f"2 - Transformers detectar GPU automaticamente: {'Sim' if allow_tf_cuda else 'Não'}"
-        )
-        print(f"3 - Selecionar tabela (atual: documents_{train_dim})")
-        print(f"4 - Épocas (atual: {epochs})")
-        print(f"5 - Batch size (atual: {batch_size})")
-        print(f"6 - Avaliar a cada N passos (atual: {eval_steps})")
-        print(f"7 - Porcentagem validação (atual: {val_split})")
-        print(f"8 - Processos de tokenização (atual: {tokenize_num_proc})")
-        print(f"9 - Workers DataLoader (atual: {dataloader_num_workers})")
-        print("0 - Voltar")
-        c = input("> ").strip()
-
-        if c == "0":
-            break
-
-        elif c == "1":
-            from training import train_model
-            train_model(
-                train_dim,
-                device,
-                allow_auto_gpu=allow_tf_cuda,
-                epochs=epochs,
-                batch_size=batch_size,
-                eval_steps=eval_steps,
-                validation_split=val_split,
-                max_seq_length=MAX_SEQ_LENGTH,
-                tokenize_num_proc=tokenize_num_proc,
-                dataloader_num_workers=dataloader_num_workers,
-            )
-            input("ENTER para continuar…")
-
-        elif c == "2":
-            allow_tf_cuda = toggle_tf_cuda(allow_tf_cuda)
-
-        elif c == "3":
-            train_dim = select_dimension(train_dim)
-
-        elif c == "4":
-            inp = input(f"Número de épocas [{epochs}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                epochs = int(inp)
-
-        elif c == "5":
-            inp = input(f"Batch size [{batch_size}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                batch_size = int(inp)
-
-        elif c == "6":
-            inp = input(f"Avaliar a cada quantos passos? [{eval_steps}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                eval_steps = int(inp)
-
-        elif c == "7":
-            inp = input(f"Porcentagem de valida\u00e7\u00e3o (0-1) [{val_split}]: ").strip()
-            try:
-                v = float(inp)
-                if 0 < v < 1:
-                    val_split = v
-            except ValueError:
-                pass
-
-        else:
-            print("Opção inválida.")
-            time.sleep(1)
-
-    return (
+    from training import train_model
+    return _run_training_menu(
+        "",
+        train_model,
         train_dim,
+        device,
         allow_tf_cuda,
         epochs,
         batch_size,
@@ -332,73 +388,30 @@ def cve_training_menu(
     tokenize_num_proc: int,
     dataloader_num_workers: int,
 ) -> tuple[bool, int, int, int, float, int, int]:
-    """Menu de treinamento usando base CVE."""
-    while True:
-        clear_screen()
-        print("*** Menu Treinamento CVE ***")
-        print("1 - Treinar modelo")
-        print(
-            f"2 - Transformers detectar GPU automaticamente: {'Sim' if allow_tf_cuda else 'Não'}"
-        )
-        print(f"3 - Épocas (atual: {epochs})")
-        print(f"4 - Batch size (atual: {batch_size})")
-        print(f"5 - Avaliar a cada N passos (atual: {eval_steps})")
-        print(f"6 - Porcentagem validação (atual: {val_split})")
-        print(f"7 - Processos de tokenização (atual: {tokenize_num_proc})")
-        print(f"8 - Workers DataLoader (atual: {dataloader_num_workers})")
-        print("0 - Voltar")
-        c = input("> ").strip()
-
-        if c == "0":
-            break
-        elif c == "1":
-            from training import train_cve_model
-            train_cve_model(
-                device,
-                allow_auto_gpu=allow_tf_cuda,
-                epochs=epochs,
-                batch_size=batch_size,
-                eval_steps=eval_steps,
-                validation_split=val_split,
-                max_seq_length=MAX_SEQ_LENGTH,
-                tokenize_num_proc=tokenize_num_proc,
-                dataloader_num_workers=dataloader_num_workers,
-            )
-            input("ENTER para continuar…")
-        elif c == "2":
-            allow_tf_cuda = toggle_tf_cuda(allow_tf_cuda)
-        elif c == "3":
-            inp = input(f"Número de épocas [{epochs}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                epochs = int(inp)
-        elif c == "4":
-            inp = input(f"Batch size [{batch_size}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                batch_size = int(inp)
-        elif c == "5":
-            inp = input(f"Avaliar a cada quantos passos? [{eval_steps}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                eval_steps = int(inp)
-        elif c == "6":
-            inp = input(f"Porcentagem de validação (0-1) [{val_split}]: ").strip()
-            try:
-                v = float(inp)
-                if 0 < v < 1:
-                    val_split = v
-            except ValueError:
-                pass
-        elif c == "7":
-            inp = input(f"Tokenize num_proc [{tokenize_num_proc}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                tokenize_num_proc = int(inp)
-        elif c == "8":
-            inp = input(f"Dataloader workers [{dataloader_num_workers}]: ").strip()
-            if inp.isdigit() and int(inp) >= 0:
-                dataloader_num_workers = int(inp)
-        else:
-            print("Opção inválida.")
-            time.sleep(1)
-
+    from training import train_cve_model
+    res = _run_training_menu(
+        "CVE",
+        train_cve_model,
+        None,
+        device,
+        allow_tf_cuda,
+        epochs,
+        batch_size,
+        eval_steps,
+        val_split,
+        tokenize_num_proc,
+        dataloader_num_workers,
+    )
+    (
+        _,
+        allow_tf_cuda,
+        epochs,
+        batch_size,
+        eval_steps,
+        val_split,
+        tokenize_num_proc,
+        dataloader_num_workers,
+    ) = res
     return (
         allow_tf_cuda,
         epochs,
@@ -421,81 +434,12 @@ def qa_training_menu(
     tokenize_num_proc: int,
     dataloader_num_workers: int,
 ) -> tuple[int, bool, int, int, int, float, int, int]:
-    """Menu de treinamento para perguntas e respostas."""
-    while True:
-        clear_screen()
-        print("*** Menu Treinamento QA ***")
-        print("1 - Treinar modelo")
-        print(
-            f"2 - Transformers detectar GPU automaticamente: {'Sim' if allow_tf_cuda else 'Não'}"
-        )
-        print(f"3 - Selecionar tabela (atual: documents_{train_dim})")
-        print(f"4 - Épocas (atual: {epochs})")
-        print(f"5 - Batch size (atual: {batch_size})")
-        print(f"6 - Avaliar a cada N passos (atual: {eval_steps})")
-        print(f"7 - Porcentagem validação (atual: {val_split})")
-        print(f"8 - Processos de tokenização (atual: {tokenize_num_proc})")
-        print(f"9 - Workers DataLoader (atual: {dataloader_num_workers})")
-        print("0 - Voltar")
-        c = input("> ").strip()
-
-        if c == "0":
-            break
-        elif c == "1":
-            from training import train_qa_model
-            train_qa_model(
-                train_dim,
-                device,
-                allow_auto_gpu=allow_tf_cuda,
-                epochs=epochs,
-                batch_size=batch_size,
-                eval_steps=eval_steps,
-                validation_split=val_split,
-                max_seq_length=MAX_SEQ_LENGTH,
-                tokenize_num_proc=tokenize_num_proc,
-                dataloader_num_workers=dataloader_num_workers,
-            )
-            input("ENTER para continuar…")
-        elif c == "2":
-            allow_tf_cuda = toggle_tf_cuda(allow_tf_cuda)
-        elif c == "3":
-            train_dim = select_dimension(train_dim)
-        elif c == "4":
-            inp = input(f"Número de épocas [{epochs}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                epochs = int(inp)
-        elif c == "5":
-            inp = input(f"Batch size [{batch_size}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                batch_size = int(inp)
-        elif c == "6":
-            inp = input(f"Avaliar a cada quantos passos? [{eval_steps}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                eval_steps = int(inp)
-        elif c == "7":
-            inp = input(f"Porcentagem de validação (0-1) [{val_split}]: ").strip()
-            try:
-                v = float(inp)
-                if 0 < v < 1:
-                    val_split = v
-            except ValueError:
-                pass
-
-        elif c == "8":
-            inp = input(f"Tokenize num_proc [{tokenize_num_proc}]: ").strip()
-            if inp.isdigit() and int(inp) > 0:
-                tokenize_num_proc = int(inp)
-
-        elif c == "9":
-            inp = input(f"Dataloader workers [{dataloader_num_workers}]: ").strip()
-            if inp.isdigit() and int(inp) >= 0:
-                dataloader_num_workers = int(inp)
-        else:
-            print("Opção inválida.")
-            time.sleep(1)
-
-    return (
+    from training import train_qa_model
+    return _run_training_menu(
+        "QA",
+        train_qa_model,
         train_dim,
+        device,
         allow_tf_cuda,
         epochs,
         batch_size,
@@ -504,7 +448,6 @@ def qa_training_menu(
         tokenize_num_proc,
         dataloader_num_workers,
     )
-
 
 def training_type_menu(
     train_dim: int,
