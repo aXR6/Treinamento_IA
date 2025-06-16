@@ -137,7 +137,7 @@ Em CPUs com 12 núcleos, defina `TOKENIZE_NUM_PROC` e
 1. Defina o modelo desejado em `TRAINING_MODEL_NAME` no `.env`. Se não definido, será usado `deepseek-ai/DeepSeek-R1-Distill-Llama-8B`.
 2. Processe seus documentos normalmente (opções 1 a 7 do menu) para popular a tabela `public.documents_<dim>`.
 3. Escolha a dimensão (opção 3) e o dispositivo (opção 4).
-4. Acesse **8 - Treinamento** ou **9 - Treinamento QA**. Nos submenus você pode:
+4. Acesse **8 - Treinamento** e escolha **Treinamento**, **Treinamento QA** ou **CVE**. Nos submenus você pode:
    - Definir a tabela de origem (opção 3).
    - Ajustar épocas, batch size, passos de avaliação e porcentagem de validação.
    - Ativar ou não a detecção automática de GPU.
