@@ -92,3 +92,12 @@ def test_env_restored_on_exception_train_qa_model(monkeypatch, training_module):
     training_module.train_qa_model(1, 'cpu')
 
     assert os.environ.get('TRANSFORMERS_NO_CUDA') == 'orig'
+
+
+def test_env_restored_on_exception_train_cve_model(monkeypatch, training_module):
+    monkeypatch.setenv('TRANSFORMERS_NO_CUDA', 'orig')
+    monkeypatch.setattr(training_module, '_fetch_cve_texts', lambda *a, **k: (_ for _ in ()).throw(RuntimeError('fail')))
+
+    training_module.train_cve_model('cpu')
+
+    assert os.environ.get('TRANSFORMERS_NO_CUDA') == 'orig'

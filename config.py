@@ -19,6 +19,7 @@ PG_USER     = os.getenv("PG_USER")
 PG_PASSWORD = os.getenv("PG_PASSWORD")
 PG_DB_PDF   = os.getenv("PG_DB_PDF")
 PG_DB_QA    = os.getenv("PG_DB_QA")
+PG_DB_CVE   = os.getenv("PG_DB_CVE")
 
 # — Modelos de Embedding & Chunking
 OLLAMA_EMBEDDING_MODEL  = os.getenv("OLLAMA_EMBEDDING_MODEL")
@@ -88,7 +89,7 @@ DATALOADER_NUM_WORKERS      = int(os.getenv("DATALOADER_NUM_WORKERS", "0"))
 
 def validate_config():
     missing = []
-    for var in ("PG_HOST", "PG_PORT", "PG_USER", "PG_PASSWORD", "PG_DB_PDF", "PG_DB_QA"):
+    for var in ("PG_HOST", "PG_PORT", "PG_USER", "PG_PASSWORD", "PG_DB_PDF", "PG_DB_QA", "PG_DB_CVE"):
         if not globals().get(var):
             missing.append(var)
     if missing:

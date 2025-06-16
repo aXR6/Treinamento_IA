@@ -25,6 +25,7 @@ from config import (
     PG_PASSWORD,
     PG_DB_PDF,
     PG_DB_QA,
+    PG_DB_CVE,
     TRAINING_MODEL_NAME,
     LEARNING_RATE,
     WEIGHT_DECAY,
@@ -88,6 +89,35 @@ def _fetch_qa_pairs(dim: int, db_name: str, batch_size: int = 1000) -> Iterator[
                     break
                 for content, q, a in rows:
                     yield content, q, a
+    except Exception as e:
+        logging.error(f"Erro ao ler dados de {table}: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+def _fetch_cve_texts(db_name: str, batch_size: int = 1000) -> Iterator[str]:
+    """Lê coluna `description` da view public.all_vulnerabilities."""
+    table = "public.all_vulnerabilities"
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            host=PG_HOST,
+            port=PG_PORT,
+            dbname=db_name,
+            user=PG_USER,
+            password=PG_PASSWORD,
+        )
+        with conn.cursor(name="cursor_cve") as cur:
+            cur.itersize = batch_size
+            cur.execute(
+                "SELECT description FROM public.all_vulnerabilities WHERE description IS NOT NULL"
+            )
+            while True:
+                rows = cur.fetchmany(batch_size)
+                if not rows:
+                    break
+                for (desc,) in rows:
+                    yield desc
     except Exception as e:
         logging.error(f"Erro ao ler dados de {table}: {e}")
     finally:
@@ -366,6 +396,158 @@ def train_qa_model(
         logging.info(f"Dispositivo escolhido: {resolved_device}")
 
         out_dir = f"{base_model.replace('/', '_')}_finetuned_qa_{dim}"
+        base_args = {
+            "output_dir": out_dir,
+            "num_train_epochs": epochs,
+            "per_device_train_batch_size": batch_size,
+            "overwrite_output_dir": True,
+            "use_cpu": resolved_device == "cpu",
+            "dataloader_num_workers": dataloader_num_workers,
+        }
+
+        sig = inspect.signature(TrainingArguments)
+        if "evaluation_strategy" in sig.parameters:
+            base_args.update({
+                "per_device_eval_batch_size": batch_size,
+                "logging_steps": 10,
+                "evaluation_strategy": "steps",
+                "eval_steps": eval_steps,
+                "save_strategy": "steps",
+                "save_steps": eval_steps,
+                "load_best_model_at_end": True,
+                "metric_for_best_model": "loss",
+                "greater_is_better": False,
+            })
+        else:
+            base_args["logging_steps"] = 10
+
+        base_args.update(
+            {
+                "learning_rate": learning_rate,
+                "weight_decay": weight_decay,
+                "warmup_steps": warmup_steps,
+                "gradient_accumulation_steps": gradient_accumulation_steps,
+                "lr_scheduler_type": lr_scheduler_type,
+            }
+        )
+
+        training_args = TrainingArguments(**base_args)
+
+        try:
+            model = model.to(resolved_device)
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                logging.error(f"Memória insuficiente para mover modelo: {e}")
+                print(
+                    "\n⚠️  Não há memória de vídeo suficiente. "
+                    "Reduza o batch size ou selecione 'cpu' como dispositivo."
+                )
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                return
+            raise
+
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_ds,
+            eval_dataset=eval_ds,
+            data_collator=collator,
+            callbacks=[ProgressCallback()],
+        )
+
+        logging.info("Iniciando treinamento…")
+        try:
+            trainer.train()
+            trainer.save_model(training_args.output_dir)
+            best_dir = os.path.join(training_args.output_dir, "best_model")
+            trainer.save_model(best_dir)
+            logging.info(
+                f"Modelo salvo em {training_args.output_dir} (melhor em {best_dir})"
+            )
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                logging.error(f"Memória insuficiente durante o treinamento: {e}")
+                print(
+                    "\n⚠️  A GPU ficou sem memória durante o treinamento. "
+                    "Tente reduzir o batch size ou utilize a CPU."
+                )
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                return
+            raise
+    finally:
+        if prev_env is not None:
+            os.environ["TRANSFORMERS_NO_CUDA"] = prev_env
+        else:
+            os.environ.pop("TRANSFORMERS_NO_CUDA", None)
+
+
+def train_cve_model(
+    device: str,
+    model_name: Optional[str] = None,
+    allow_auto_gpu: bool = True,
+    epochs: int = 1,
+    batch_size: int = 1,
+    eval_steps: int = 500,
+    validation_split: float = 0.1,
+    max_seq_length: int = 0,
+    learning_rate: float = LEARNING_RATE,
+    weight_decay: float = WEIGHT_DECAY,
+    warmup_steps: int = WARMUP_STEPS,
+    gradient_accumulation_steps: int = GRADIENT_ACCUMULATION_STEPS,
+    lr_scheduler_type: str = LR_SCHEDULER_TYPE,
+    tokenize_num_proc: int = TOKENIZE_NUM_PROC,
+    dataloader_num_workers: int = DATALOADER_NUM_WORKERS,
+) -> None:
+    """Ajusta um modelo com descrições de vulnerabilidades."""
+
+    def text_generator() -> Iterator[dict]:
+        for txt in _fetch_cve_texts(PG_DB_CVE):
+            yield {"text": txt}
+
+    use_cuda = _should_use_cuda(device, allow_auto_gpu)
+    prev_env = os.environ.get("TRANSFORMERS_NO_CUDA")
+    if not use_cuda:
+        os.environ["TRANSFORMERS_NO_CUDA"] = "1"
+    else:
+        if prev_env is not None:
+            os.environ.pop("TRANSFORMERS_NO_CUDA", None)
+
+    try:
+        base_model = model_name or TRAINING_MODEL_NAME
+        logging.info(f"Carregando modelo '{base_model}'…")
+        tokenizer = AutoTokenizer.from_pretrained(base_model)
+        model = AutoModelForCausalLM.from_pretrained(base_model)
+
+        features = Features({"text": Value("string")})
+        try:
+            dataset = Dataset.from_generator(text_generator, features=features)
+        except Exception:
+            logging.error("Nenhum texto encontrado para treinamento.")
+            return
+        dataset_len = len(dataset)
+        logging.info(f"Total de textos carregados: {dataset_len}")
+
+        def tokenize_fn(examples):
+            max_len = max_seq_length or tokenizer.model_max_length
+            return tokenizer(examples["text"], truncation=True, max_length=max_len)
+
+        tokenized = dataset.map(
+            tokenize_fn,
+            batched=True,
+            remove_columns=["text"],
+            num_proc=tokenize_num_proc,
+        )
+        split = tokenized.train_test_split(test_size=validation_split, seed=42)
+        train_ds = split["train"]
+        eval_ds = split["test"]
+        collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+
+        resolved_device = _resolve_device(device, allow_auto_gpu)
+        logging.info(f"Dispositivo escolhido: {resolved_device}")
+
+        out_dir = f"{base_model.replace('/', '_')}_finetuned_cve"
         base_args = {
             "output_dir": out_dir,
             "num_train_epochs": epochs,

@@ -98,6 +98,7 @@ PG_USER=vector_store
 PG_PASSWORD=senha
 PG_DB_PDF=vector_store_pdf
 PG_DB_QA=vector_store_pdf_qs
+PG_DB_CVE=cve
 
 TRAINING_MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Llama-8B
 EVAL_STEPS=500

@@ -16,7 +16,7 @@ from config import (
     MINILM_L6_V2, MINILM_L12_V2, MPNET_EMBEDDING_MODEL,
     DIM_MXBAI, DIM_SERAFIM, DIM_MINILM_L6, DIM_MINIL12, DIM_MPNET,
     OCR_THRESHOLD, EVAL_STEPS, VALIDATION_SPLIT, MAX_SEQ_LENGTH,
-    PG_DB_PDF, PG_DB_QA,
+    PG_DB_PDF, PG_DB_QA, PG_DB_CVE,
     TOKENIZE_NUM_PROC, DATALOADER_NUM_WORKERS,
     validate_config
 )
@@ -53,6 +53,7 @@ DIMENSIONS = {
 DB_OPTIONS = {
     "1": PG_DB_PDF,
     "2": PG_DB_QA,
+    "3": PG_DB_CVE,
 }
 
 def _resolve_dev(device: str) -> str:
@@ -321,6 +322,94 @@ def training_menu(
     )
 
 
+def cve_training_menu(
+    device: str,
+    allow_tf_cuda: bool,
+    epochs: int,
+    batch_size: int,
+    eval_steps: int,
+    val_split: float,
+    tokenize_num_proc: int,
+    dataloader_num_workers: int,
+) -> tuple[bool, int, int, int, float, int, int]:
+    """Menu de treinamento usando base CVE."""
+    while True:
+        clear_screen()
+        print("*** Menu Treinamento CVE ***")
+        print("1 - Treinar modelo")
+        print(
+            f"2 - Transformers detectar GPU automaticamente: {'Sim' if allow_tf_cuda else 'Não'}"
+        )
+        print(f"3 - Épocas (atual: {epochs})")
+        print(f"4 - Batch size (atual: {batch_size})")
+        print(f"5 - Avaliar a cada N passos (atual: {eval_steps})")
+        print(f"6 - Porcentagem validação (atual: {val_split})")
+        print(f"7 - Processos de tokenização (atual: {tokenize_num_proc})")
+        print(f"8 - Workers DataLoader (atual: {dataloader_num_workers})")
+        print("0 - Voltar")
+        c = input("> ").strip()
+
+        if c == "0":
+            break
+        elif c == "1":
+            from training import train_cve_model
+            train_cve_model(
+                device,
+                allow_auto_gpu=allow_tf_cuda,
+                epochs=epochs,
+                batch_size=batch_size,
+                eval_steps=eval_steps,
+                validation_split=val_split,
+                max_seq_length=MAX_SEQ_LENGTH,
+                tokenize_num_proc=tokenize_num_proc,
+                dataloader_num_workers=dataloader_num_workers,
+            )
+            input("ENTER para continuar…")
+        elif c == "2":
+            allow_tf_cuda = toggle_tf_cuda(allow_tf_cuda)
+        elif c == "3":
+            inp = input(f"Número de épocas [{epochs}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                epochs = int(inp)
+        elif c == "4":
+            inp = input(f"Batch size [{batch_size}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                batch_size = int(inp)
+        elif c == "5":
+            inp = input(f"Avaliar a cada quantos passos? [{eval_steps}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                eval_steps = int(inp)
+        elif c == "6":
+            inp = input(f"Porcentagem de validação (0-1) [{val_split}]: ").strip()
+            try:
+                v = float(inp)
+                if 0 < v < 1:
+                    val_split = v
+            except ValueError:
+                pass
+        elif c == "7":
+            inp = input(f"Tokenize num_proc [{tokenize_num_proc}]: ").strip()
+            if inp.isdigit() and int(inp) > 0:
+                tokenize_num_proc = int(inp)
+        elif c == "8":
+            inp = input(f"Dataloader workers [{dataloader_num_workers}]: ").strip()
+            if inp.isdigit() and int(inp) >= 0:
+                dataloader_num_workers = int(inp)
+        else:
+            print("Opção inválida.")
+            time.sleep(1)
+
+    return (
+        allow_tf_cuda,
+        epochs,
+        batch_size,
+        eval_steps,
+        val_split,
+        tokenize_num_proc,
+        dataloader_num_workers,
+    )
+
+
 def qa_training_menu(
     train_dim: int,
     device: str,
@@ -514,6 +603,7 @@ def main():
         print("8 - Treinamento")
         print("9 - Treinamento QA")
         print("10 - Testar Modelo")
+        print("11 - Treinamento CVE")
         print("0 - Sair")
         c = input("> ").strip()
 
@@ -647,6 +737,26 @@ def main():
 
         elif c == "10":
             test_path, device = model_test_menu(test_path, device)
+
+        elif c == "11":
+            (
+                allow_tf_cuda,
+                epochs,
+                batch_size,
+                eval_steps,
+                val_split,
+                tokenize_num_proc,
+                dataloader_num_workers,
+            ) = cve_training_menu(
+                device,
+                allow_tf_cuda,
+                epochs,
+                batch_size,
+                eval_steps,
+                val_split,
+                tokenize_num_proc,
+                dataloader_num_workers,
+            )
 
         else:
             print("Opção inválida.")
