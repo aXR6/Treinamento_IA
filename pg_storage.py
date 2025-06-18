@@ -461,8 +461,9 @@ def save_to_postgres(filename: str,
     Após inserir todos os chunks, se houver chave '__query' em metadata, executa re-ranking
     com CrossEncoder e adiciona o campo 'rerank_score' em cada dicionário antes de ordenar.
     O parâmetro ``db_name`` permite escolher qual banco de dados será utilizado,
-    padrão ``PG_DB_PDF``. Quando ``with_qa`` é ``False`` as colunas
-    ``question`` e ``answer`` são armazenadas vazias.
+    padrão ``PG_DB_PDF``. Quando ``with_qa`` é ``False`` as colunas ``question``
+    e ``answer`` não são geradas. A função detecta se a tabela possui tais
+    colunas e ajusta a inserção automaticamente.
     """
     conn = None
     inserted = []
@@ -490,6 +491,20 @@ def save_to_postgres(filename: str,
 
         table = f"public.documents_{embedding_dim}"
 
+        cur.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='public' AND table_name=%s",
+            (f"documents_{embedding_dim}",)
+        )
+        cols = {r[0] for r in cur.fetchall()}
+        has_qa_cols = 'question' in cols and 'answer' in cols
+        if with_qa and not has_qa_cols:
+            logging.warning(
+                f"Tabela {table} n\xc3\xa3o possui colunas question/answer; "
+                "desativando gera\xc3\xa7\xc3\xa3o de QA."
+            )
+            with_qa = False
+
         # Inser\u00e7\u00e3o em streaming: consome o gerador de chunks
         for idx, chunk in enumerate(hierarchical_chunk_generator(text, metadata, embedding_model, device_use)):
             clean = chunk.replace("\x00", "")
@@ -505,17 +520,27 @@ def save_to_postgres(filename: str,
                 question, answer = "", ""
 
             # Metadata mant\u00e9m todas as chaves originais + __parent e __chunk_index
-            rec = {**metadata, "__parent": filename, "__chunk_index": idx,
-                   "question": question, "answer": answer}
+            rec = {**metadata, "__parent": filename, "__chunk_index": idx}
+            columns = ["content", "metadata", "embedding"]
+            values = ["%s", "%s::jsonb", "%s"]
+            params = [clean, json.dumps(rec, ensure_ascii=False), emb]
+
+            if has_qa_cols:
+                rec.update({"question": question, "answer": answer})
+                columns.extend(["question", "answer"])
+                values.extend(["%s", "%s"])
+                params.extend([question, answer])
 
             cur.execute(
-                f"INSERT INTO {table} (content, metadata, embedding, question, answer) "
-                f"VALUES (%s, %s::jsonb, %s, %s, %s) RETURNING id",
-                (clean, json.dumps(rec, ensure_ascii=False), emb, question, answer)
+                f"INSERT INTO {table} ({', '.join(columns)}) "
+                f"VALUES ({', '.join(values)}) RETURNING id",
+                tuple(params)
             )
             doc_id = cur.fetchone()[0]
-            inserted.append({'id': doc_id, 'content': clean, 'metadata': rec,
-                             'question': question, 'answer': answer})
+            out_rec = {'id': doc_id, 'content': clean, 'metadata': rec}
+            if has_qa_cols:
+                out_rec.update({'question': question, 'answer': answer})
+            inserted.append(out_rec)
 
             # Limpeza imediata de objetos pesados
             del clean
