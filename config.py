@@ -27,6 +27,7 @@ SERAFIM_EMBEDDING_MODEL = os.getenv("SERAFIM_EMBEDDING_MODEL")
 MINILM_L6_V2            = os.getenv("MINILM_L6_V2")
 MINILM_L12_V2           = os.getenv("MINILM_L12_V2")
 MPNET_EMBEDDING_MODEL   = os.getenv("MPNET_EMBEDDING_MODEL")
+QWEN3_EMBEDDING_MODEL   = os.getenv("QWEN3_EMBEDDING_MODEL")
 SBERT_MODEL_NAME        = os.getenv("SBERT_MODEL_NAME")
 # Modelos para geração de perguntas e respostas
 QG_MODEL = os.getenv("QG_MODEL", "valhalla/t5-base-qa-qg-hl")
@@ -44,6 +45,7 @@ DIM_SERAFIM   = int(os.getenv("DIM_SERAFIM", "0"))
 DIM_MINILM_L6 = int(os.getenv("DIM_MINILM_L6", "0"))
 DIM_MINIL12   = int(os.getenv("DIM_MINIL12", "0"))
 DIM_MPNET     = int(os.getenv("DIM_MPNET", "0"))
+DIM_QWEN3     = int(os.getenv("DIM_QWEN3", "0"))
 
 # — Parâmetros OCR
 OCR_THRESHOLD = int(os.getenv("OCR_THRESHOLD", "100"))

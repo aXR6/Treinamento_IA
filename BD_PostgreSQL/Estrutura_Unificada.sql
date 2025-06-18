@@ -98,6 +98,21 @@ CREATE INDEX IF NOT EXISTS idx_docs1536_auth ON public.documents_1536 USING gin(
 CREATE INDEX IF NOT EXISTS idx_docs1536_type ON public.documents_1536 USING gin((metadata->>'type') gin_trgm_ops) WHERE metadata ? 'type';
 CREATE INDEX IF NOT EXISTS idx_docs1536_parent ON public.documents_1536 USING gin((metadata->>'__parent') gin_trgm_ops);
 
+CREATE TABLE IF NOT EXISTS public.documents_4096 (LIKE public.documents_384 INCLUDING ALL);
+ALTER TABLE public.documents_4096 ALTER COLUMN embedding TYPE VECTOR(4096);
+DROP TRIGGER IF EXISTS tsv_full_trigger ON public.documents_4096;
+CREATE TRIGGER tsv_full_trigger
+  BEFORE INSERT OR UPDATE ON public.documents_4096
+  FOR EACH ROW EXECUTE FUNCTION public.update_tsv_full();
+CREATE INDEX IF NOT EXISTS idx_docs4096_emb_hnsw ON public.documents_4096 USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 200);
+CREATE INDEX IF NOT EXISTS idx_docs4096_emb_ivf ON public.documents_4096 USING ivfflat (embedding vector_cosine_ops) WITH (lists = 400);
+CREATE INDEX IF NOT EXISTS idx_docs4096_tsv ON public.documents_4096 USING gin(tsv_full);
+CREATE INDEX IF NOT EXISTS idx_docs4096_meta ON public.documents_4096 USING gin(metadata);
+CREATE INDEX IF NOT EXISTS idx_docs4096_title ON public.documents_4096 USING gin((metadata->>'title') gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_docs4096_auth ON public.documents_4096 USING gin((metadata->>'author') gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_docs4096_type ON public.documents_4096 USING gin((metadata->>'type') gin_trgm_ops) WHERE metadata ? 'type';
+CREATE INDEX IF NOT EXISTS idx_docs4096_parent ON public.documents_4096 USING gin((metadata->>'__parent') gin_trgm_ops);
+
 CREATE OR REPLACE FUNCTION public.match_documents_hybrid(
   query_embedding VECTOR,
   query_text      TEXT      DEFAULT NULL,
@@ -118,7 +133,7 @@ DECLARE
   tbl_full TEXT  := format('%I.%I', 'public', 'documents_' || dim);
   sql      TEXT;
 BEGIN
-  IF dim NOT IN (384,768,1024,1536) THEN
+  IF dim NOT IN (384,768,1024,1536,4096) THEN
     RAISE EXCEPTION 'Dimensão não suportada: %', dim;
   END IF;
   sql := format($body$
@@ -186,7 +201,7 @@ DECLARE
   tbl_full TEXT  := format('%I.%I', 'public', 'documents_' || dim);
   sql      TEXT;
 BEGIN
-  IF dim NOT IN (384,768,1024,1536) THEN
+  IF dim NOT IN (384,768,1024,1536,4096) THEN
     RAISE EXCEPTION 'Dimensão não suportada: %', dim;
   END IF;
   sql := format($body$

@@ -34,10 +34,10 @@ python3 main.py
 O arquivo `.env` possibilita ajustar diversos parâmetros do projeto:
 
 - **Modelos de embedding**: `OLLAMA_EMBEDDING_MODEL`, `SERAFIM_EMBEDDING_MODEL`,
-  `MINILM_L6_V2`, `MINILM_L12_V2` e `MPNET_EMBEDDING_MODEL`. Defina
+  `MINILM_L6_V2`, `MINILM_L12_V2`, `MPNET_EMBEDDING_MODEL` e `QWEN3_EMBEDDING_MODEL`. Defina
   `SBERT_MODEL_NAME` para escolher qual será o padrão.
 - **Dimensões**: `DIM_MXBAI`, `DIM_SERAFIM`, `DIM_MINILM_L6`, `DIM_MINIL12` e
-  `DIM_MPNET` indicam o tamanho dos vetores em `documents_<dim>`.
+  `DIM_MPNET`, `DIM_QWEN3` indicam o tamanho dos vetores em `documents_<dim>`.
 - **OCR**: `OCR_LANGUAGES`, `TESSERACT_CONFIG`, `OCR_THRESHOLD` e
   `PDF2IMAGE_TIMEOUT` controlam a extração de texto via OCR.
 - **Chunking**: `CHUNK_SIZE`, `CHUNK_OVERLAP`, `SLIDING_WINDOW_OVERLAP_RATIO`,
