@@ -450,17 +450,19 @@ def save_to_postgres(filename: str,
                      embedding_model: str,
                      embedding_dim: int,
                      device: str,
-                     db_name: str = PG_DB_PDF) -> list[dict]:
+                     db_name: str = PG_DB_PDF,
+                     with_qa: bool = True) -> list[dict]:
     """
-    Insere no PostgreSQL cada chunk gerado em streaming pelo hierarchical_chunk_generator.
-    Retorna uma lista de dicionários contendo:
+    Insere no PostgreSQL cada chunk gerado em streaming pelo
+    ``hierarchical_chunk_generator``. Retorna uma lista de dicionários contendo:
       - 'id': id gerado pelo banco para cada chunk,
       - 'content': texto do chunk,
       - 'metadata': metadados JSONB originais + __parent e __chunk_index.
     Após inserir todos os chunks, se houver chave '__query' em metadata, executa re-ranking
     com CrossEncoder e adiciona o campo 'rerank_score' em cada dicionário antes de ordenar.
     O parâmetro ``db_name`` permite escolher qual banco de dados será utilizado,
-    padrão ``PG_DB_PDF``.
+    padrão ``PG_DB_PDF``. Quando ``with_qa`` é ``False`` as colunas
+    ``question`` e ``answer`` são armazenadas vazias.
     """
     conn = None
     inserted = []
@@ -488,18 +490,21 @@ def save_to_postgres(filename: str,
 
         table = f"public.documents_{embedding_dim}"
 
-        # Inserção em streaming: consome o gerador de chunks
+        # Inser\u00e7\u00e3o em streaming: consome o gerador de chunks
         for idx, chunk in enumerate(hierarchical_chunk_generator(text, metadata, embedding_model, device_use)):
             clean = chunk.replace("\x00", "")
             emb = generate_embedding(clean, embedding_model, embedding_dim, device_use)
-            question, answer = generate_qa(clean, device_use)
 
-            if not question or not answer:
-                logging.warning(
-                    f"QA vazio no chunk {idx} do arquivo '{filename}'"
-                )
+            if with_qa:
+                question, answer = generate_qa(clean, device_use)
+                if not question or not answer:
+                    logging.warning(
+                        f"QA vazio no chunk {idx} do arquivo '{filename}'"
+                    )
+            else:
+                question, answer = "", ""
 
-            # Metadata mantém todas as chaves originais + __parent e __chunk_index
+            # Metadata mant\u00e9m todas as chaves originais + __parent e __chunk_index
             rec = {**metadata, "__parent": filename, "__chunk_index": idx,
                    "question": question, "answer": answer}
 

@@ -146,7 +146,7 @@ def model_test_menu(current_path: str, device: str) -> tuple[str, str]:
         print("0 - Voltar")
         c = input("> ").strip()
 
-        if c == "10":
+        if c == "11":
             break
         elif c == "1":
             p = input(f"Diretório do modelo [{current_path}]: ").strip()
@@ -551,12 +551,14 @@ def training_type_menu(
     )
 
 def process_file(path: str, strat: str, model: str, dim: int, device: str,
-                 db_name: str, stats: dict, processed_root: Optional[str] = None):
+                 db_name: str, stats: dict, processed_root: Optional[str] = None,
+                 with_qa: bool = True):
     """
-    Processa um único arquivo: extrai texto, gera embeddings e salva no PostgreSQL.
-    Agora o save_to_postgres retorna a lista completa de registros inseridos,
-    para que possamos logar quantos chunks foram inseridos e (se aplicável)
-    qual a pontuação de reranking de cada um.
+    Processa um \u00fanico arquivo: extrai texto, gera embeddings e salva no
+    PostgreSQL. ``with_qa`` define se perguntas e respostas ser\u00e3o geradas.
+    O ``save_to_postgres`` retorna a lista completa de registros inseridos para
+    que possamos logar quantos chunks foram inseridos e (se aplic\u00e1vel) qual a
+    pontua\u00e7\u00e3o de reranking de cada um.
     """
     filename = os.path.basename(path)
     logging.info(f"→ Processando arquivo: {filename}  |  Estratégia: {strat}  |  Embedding: {model}  |  Dimensão: {dim}")
@@ -585,7 +587,8 @@ def process_file(path: str, strat: str, model: str, dim: int, device: str,
     try:
         inserted_list = save_to_postgres(
             filename, rec['text'], rec['info'],
-            model, dim, device, db_name
+            model, dim, device, db_name,
+            with_qa=with_qa
         )
         stats['processed'] += 1
 
@@ -614,6 +617,41 @@ def process_file(path: str, strat: str, model: str, dim: int, device: str,
         except Exception:
             pass
 
+def extract_pdf_with_qa(path: str, strat: str = "ocr", model: str = OLLAMA_EMBEDDING_MODEL,
+                        dim: int = DIM_MXBAI, device: str = "auto") -> dict:
+    """Extrai um único PDF gerando perguntas e respostas."""
+    stats = {"processed": 0, "errors": 0}
+    process_file(
+        path,
+        strat,
+        model,
+        dim,
+        device,
+        PG_DB_QA,
+        stats,
+        os.path.dirname(path),
+        with_qa=True,
+    )
+    return stats
+
+
+def extract_pdf_chunks(path: str, strat: str = "ocr", model: str = OLLAMA_EMBEDDING_MODEL,
+                       dim: int = DIM_MXBAI, device: str = "auto") -> dict:
+    """Extrai um único PDF armazenando apenas os chunks."""
+    stats = {"processed": 0, "errors": 0}
+    process_file(
+        path,
+        strat,
+        model,
+        dim,
+        device,
+        PG_DB_PDF,
+        stats,
+        os.path.dirname(path),
+        with_qa=False,
+    )
+    return stats
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--verbose", action="store_true")
@@ -626,6 +664,7 @@ def main():
     allow_tf_cuda = True
     train_dim = dim
     db_name = PG_DB_PDF
+    with_qa = True
     epochs = 1
     batch_size = 1
     eval_steps = EVAL_STEPS
@@ -643,14 +682,15 @@ def main():
         print(f"3 - Dimensão   (atual: {dim})")
         print(f"4 - Dispositivo (atual: {device})")
         print(f"5 - Banco     (atual: {db_name})")
-        print("6 - Processar arquivo")
-        print("7 - Processar pasta")
-        print("8 - Treinamento")
-        print("9 - Testar Modelo")
-        print("10 - Sair")
+        print(f"6 - Gerar perguntas/respostas (atual: {'Sim' if with_qa else 'Não'})")
+        print("7 - Processar arquivo")
+        print("8 - Processar pasta")
+        print("9 - Treinamento")
+        print("10 - Testar Modelo")
+        print("11 - Sair")
         c = input("> ").strip()
 
-        if c == "10":
+        if c == "11":
             break
 
         elif c == "1":
@@ -670,6 +710,9 @@ def main():
             db_name = select_database(db_name)
 
         elif c == "6":
+            with_qa = not with_qa
+
+        elif c == "7":
             # Modo “Arquivo”: processa apenas um PDF
             f = input("Arquivo: ").strip()
             if not f:
@@ -678,14 +721,23 @@ def main():
                 continue
 
             start = time.perf_counter()
-            process_file(f, strat, model, dim, device, db_name, stats,
-                         os.path.dirname(f))
+            process_file(
+                f,
+                strat,
+                model,
+                dim,
+                device,
+                db_name,
+                stats,
+                os.path.dirname(f),
+                with_qa,
+            )
             dt = time.perf_counter() - start
 
             print(f"\n→ Tempo gasto: {dt:.2f}s  •  Processados: {stats['processed']}  •  Erros: {stats['errors']}")
             input("ENTER para continuar…")
 
-        elif c == "7":
+        elif c == "8":
             # Modo “Pasta”: varre todos os arquivos de dentro de um diretório
             d = input("Pasta: ").strip()
             if not d or not os.path.isdir(d):
@@ -719,7 +771,17 @@ def main():
                 pbar.set_description(
                     f"Processando → {basename} | Strat: {strat} | Emb: {model} | Dim: {dim} | Dev: {device}"
                 )
-                process_file(path, strat, model, dim, device, db_name, stats, d)
+                process_file(
+                    path,
+                    strat,
+                    model,
+                    dim,
+                    device,
+                    db_name,
+                    stats,
+                    d,
+                    with_qa,
+                )
                 pbar.set_postfix({"P": stats['processed'], "E": stats['errors']})
                 # Coleta lixo após cada arquivo
                 try:
@@ -734,7 +796,7 @@ def main():
             print(f"  Processados: {stats['processed']}  •  Erros: {stats['errors']}  •  Tempo total: {dt:.2f}s")
             input("ENTER para continuar…")
 
-        elif c == "8":
+        elif c == "9":
             (
                 train_dim,
                 allow_tf_cuda,
@@ -756,7 +818,7 @@ def main():
                 dataloader_num_workers,
             )
 
-        elif c == "9":
+        elif c == "10":
             test_path, device = model_test_menu(test_path, device)
 
         else:
