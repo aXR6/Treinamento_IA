@@ -115,6 +115,8 @@ class DummyCursor:
         val = self.i
         self.i += 1
         return [val]
+    def fetchall(self):
+        return [('question',), ('answer',)]
 
 class DummyCE:
     def predict(self, pairs):
