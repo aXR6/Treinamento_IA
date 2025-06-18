@@ -104,7 +104,8 @@ DROP TRIGGER IF EXISTS tsv_full_trigger ON public.documents_4096;
 CREATE TRIGGER tsv_full_trigger
   BEFORE INSERT OR UPDATE ON public.documents_4096
   FOR EACH ROW EXECUTE FUNCTION public.update_tsv_full();
-CREATE INDEX IF NOT EXISTS idx_docs4096_emb_hnsw ON public.documents_4096 USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 200);
+-- HNSW indexes suportam até 2000 dimensões; para 4096 use apenas IVFFlat
+-- CREATE INDEX IF NOT EXISTS idx_docs4096_emb_hnsw ON public.documents_4096 USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 200);
 CREATE INDEX IF NOT EXISTS idx_docs4096_emb_ivf ON public.documents_4096 USING ivfflat (embedding vector_cosine_ops) WITH (lists = 400);
 CREATE INDEX IF NOT EXISTS idx_docs4096_tsv ON public.documents_4096 USING gin(tsv_full);
 CREATE INDEX IF NOT EXISTS idx_docs4096_meta ON public.documents_4096 USING gin(metadata);

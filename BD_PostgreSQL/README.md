@@ -107,6 +107,7 @@ CREATE TRIGGER tsv_full_trigger
 - **Vetoriais (pgvector):** HNSW e IVFFlat
 - **GIN** em `tsv_full` e `metadata`
 - **GIN trigram** em campos textuais (`title`, `author`, `type`, `__parent`)
+- **Limite:** índices HNSW suportam apenas 2000 dimensões; para 4096 utilize somente IVFFlat
 
 ```sql
 -- Exemplo HNSW + IVFFlat
