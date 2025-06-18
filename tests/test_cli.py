@@ -12,7 +12,9 @@ def load_main(monkeypatch):
         'PG_HOST': 'x', 'PG_PORT': '5432', 'PG_USER': 'u', 'PG_PASSWORD': 'p', 'PG_DB_PDF': 'd_pdf', 'PG_DB_QA': 'd_qa',
         'OLLAMA_EMBEDDING_MODEL': 'm1', 'SERAFIM_EMBEDDING_MODEL': 'm2',
         'MINILM_L6_V2': 'm3', 'MINILM_L12_V2': 'm4', 'MPNET_EMBEDDING_MODEL': 'm5',
-        'DIM_MXBAI': '1', 'DIM_SERAFIM': '1', 'DIM_MINILM_L6': '1', 'DIM_MINIL12': '1', 'DIM_MPNET': '1'
+        'QWEN3_EMBEDDING_MODEL': 'm6',
+        'DIM_MXBAI': '1', 'DIM_SERAFIM': '1', 'DIM_MINILM_L6': '1', 'DIM_MINIL12': '1', 'DIM_MPNET': '1',
+        'DIM_QWEN3': '1'
     }
     for k, v in env.items():
         monkeypatch.setenv(k, v)

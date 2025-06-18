@@ -92,7 +92,7 @@ Exemplo de `.env`:
 
 ```env
 # Lista de modelos de embedding separados por vírgula
-EMBEDDING_MODELS=mixedbread-ai/mxbai-embed-large-v1,PORTULAN/serafim-900m-portuguese-pt-sentence-encoder-ir,sentence-transformers/all-MiniLM-L6-v2,sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2,sentence-transformers/all-mpnet-base-v2
+EMBEDDING_MODELS=mixedbread-ai/mxbai-embed-large-v1,PORTULAN/serafim-900m-portuguese-pt-sentence-encoder-ir,sentence-transformers/all-MiniLM-L6-v2,sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2,sentence-transformers/all-mpnet-base-v2,Qwen/Qwen3-Embedding-8B
 
 # Modelo padrão
 DEFAULT_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
